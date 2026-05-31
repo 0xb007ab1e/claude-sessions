@@ -1,0 +1,4 @@
+# nothing build-generated lives here; ignore the usual editor/OS noise
+*~
+*.swp
+.DS_Store

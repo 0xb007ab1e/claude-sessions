@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# restore-claude — rebuild the 6-window "claude" tmux session with each
+# instance resuming its prior conversation, then attach.
+#
+# IMPORTANT: run this from a REAL terminal or SSH shell (NOT from inside a
+# Claude Code Bash tool), so the tmux server lives in your login session and
+# persists across disconnects. tmux daemonizes the server, so it survives even
+# after you close this terminal / drop the SSH connection.
+#
+#   from the phone:   ssh parrot -t '~/src/dev/tmux-session/restore-claude'
+#   on the laptop:    ~/src/dev/tmux-session/restore-claude
+#
+# Re-running when the session already exists just attaches (it won't duplicate
+# windows). Detach any time with Ctrl-b d; the session keeps running.
+
+set -euo pipefail
+
+CONF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tmux.conf"
+S=claude
+H="$HOME"
+T=(tmux -f "$CONF")
+
+# Already running? Just attach.
+if "${T[@]}" has-session -t "$S" 2>/dev/null; then
+  echo "session '$S' already running — attaching"
+  exec "${T[@]}" attach -t "$S"
+fi
+
+# name | starting dir | command to run
+build() {
+  "${T[@]}" new-session  -d -s "$S" -n planner  -c "$H/_src/_dev/planner-mcp"
+  "${T[@]}" new-window      -t "$S" -n security -c "$H/_src/_dev/framework/security"
+  "${T[@]}" new-window      -t "$S" -n mail-bot -c "$H/_src/_dev/mail-bot"
+  "${T[@]}" new-window      -t "$S" -n lab-1    -c "$H/_src/_dev/The-Lab"
+  "${T[@]}" new-window      -t "$S" -n lab-2    -c "$H/_src/_dev/The-Lab"
+  "${T[@]}" new-window      -t "$S" -n lab-3    -c "$H/_src/_dev/The-Lab"
+
+  # single-conversation dirs: auto-resume the most recent (the one we migrated)
+  "${T[@]}" send-keys -t "$S:planner"  'claude --continue' C-m
+  "${T[@]}" send-keys -t "$S:security" 'claude --continue' C-m
+  "${T[@]}" send-keys -t "$S:mail-bot" 'claude --continue' C-m
+  # The-Lab has 3 conversations: open the picker so you choose each one
+  # (the kept 3201748 session is the most recent Lab transcript).
+  "${T[@]}" send-keys -t "$S:lab-1"    'claude --resume'   C-m
+  "${T[@]}" send-keys -t "$S:lab-2"    'claude --resume'   C-m
+  "${T[@]}" send-keys -t "$S:lab-3"    'claude --resume'   C-m
+
+  "${T[@]}" select-window -t "$S:planner"
+}
+
+build
+echo "built session '$S' — attaching (detach with Ctrl-b d)"
+exec "${T[@]}" attach -t "$S"

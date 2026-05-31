@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Claude (join tmux)
+GenericName=Claude session manager
+Comment=Attach to the persistent Claude tmux session and start/reuse an instance
+Exec=konsole -e /home/b007ab1e/.local/bin/cj
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;Utility;
+Keywords=claude;tmux;ai;

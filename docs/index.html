@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tmux-session — docs</title>
+<style>
+  body { font: 16px/1.55 system-ui, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1rem; color: #1c1c1c; }
+  h1, h2, h3 { line-height: 1.2; }
+  code, pre { font-family: ui-monospace, monospace; }
+  pre { background: #f4f4f4; padding: .8rem 1rem; border-radius: 6px; overflow-x: auto; }
+  code { background: #f0f0f0; padding: .1em .35em; border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: .45rem .6rem; text-align: left; }
+  th { background: #f7f7f7; }
+  .sym { background: #eef4ff; padding: 1rem; border-radius: 6px; margin: 1rem 0; border: 1px solid #d7e3fb; }
+  .sym h3 { margin-top: 0; }
+  a { color: #1a5fb4; }
+</style>
+</head>
+<body>
+<h1>tmux-session</h1>
+<p>Stream multiple <a href="https://claude.com/claude-code">Claude Code</a> instances
+from a laptop to a phone over Tailscale + Termux. One tmux session, one Claude
+instance per window, tuned for a small touchscreen.</p>
+
+<h2>Files</h2>
+<table>
+  <tr><th>File</th><th>Purpose</th></tr>
+  <tr><td><a href="../cj"><code>cj</code></a></td><td>Primary join command — attach to the persistent session, reuse/spawn an instance.</td></tr>
+  <tr><td><a href="../claude-session"><code>claude-session</code></a></td><td>General launcher: build a named session with one Claude per window.</td></tr>
+  <tr><td><a href="../restore-claude"><code>restore-claude</code></a></td><td>Rebuild the 6-window resume layout (recovery helper).</td></tr>
+  <tr><td><a href="../tmux.conf"><code>tmux.conf</code></a></td><td>Phone-friendly tmux settings; sourced by <code>~/.tmux.conf</code>.</td></tr>
+  <tr><td><a href="../install.sh"><code>install.sh</code></a></td><td>Idempotent installer: symlinks, tmux config, systemd unit, desktop entry.</td></tr>
+  <tr><td><a href="../systemd/claude-tmux.service"><code>systemd/claude-tmux.service</code></a></td><td>User service that starts the session at boot.</td></tr>
+  <tr><td><a href="../applications/claude-join.desktop"><code>applications/claude-join.desktop</code></a></td><td>Desktop shortcut that runs <code>cj</code>.</td></tr>
+  <tr><td><a href="../README.md"><code>README.md</code></a></td><td>Quick reference.</td></tr>
+</table>
+
+<h2>claude-session — functions</h2>
+<p>A bash script. Its shell functions are documented below.</p>
+
+<div class="sym">
+  <h3 id="usage"><code>usage(exit_code = 0)</code></h3>
+  <p>Prints the header comment block (lines 2–30 of the script) as help text by
+  stripping the leading <code>#</code>, then exits with <code>exit_code</code>.
+  Invoked by <code>-h</code> and on any option-parsing error.</p>
+  <p><strong>Args:</strong> <code>$1</code> — exit status (default <code>0</code>).</p>
+</div>
+
+<div class="sym">
+  <h3 id="in_tmux"><code>in_tmux()</code></h3>
+  <p>Predicate: returns success when the script is running inside an existing
+  tmux client, detected via the <code>$TMUX</code> environment variable. Used to
+  decide between <code>attach-session</code> (from a bare shell) and
+  <code>switch-client</code> (from within tmux, where attach would nest).</p>
+  <p><strong>Returns:</strong> exit 0 if inside tmux, else 1.</p>
+</div>
+
+<div class="sym">
+  <h3 id="attach_or_switch"><code>attach_or_switch(target)</code></h3>
+  <p>Attaches the current terminal to tmux session <code>target</code>, or, if
+  already inside tmux, switches the active client to it (avoids the
+  "sessions should be nested with care" error).</p>
+  <p><strong>Args:</strong> <code>$1</code> — target session name.</p>
+</div>
+
+<h2>restore-claude — functions</h2>
+<div class="sym">
+  <h3 id="rc-build"><code>build()</code></h3>
+  <p>Creates the six-window <code>claude</code> session: <code>planner</code>,
+  <code>security</code>, <code>mail-bot</code> (each running
+  <code>claude --continue</code>) and <code>lab-1</code>/<code>lab-2</code>/<code>lab-3</code>
+  (each running <code>claude --resume</code> so you pick the conversation),
+  with the correct starting directory per window. If the session already exists
+  the script attaches instead of calling this.</p>
+  <p><strong>Note:</strong> must be run from a real terminal/SSH shell, not a
+  Claude Code tool, so the tmux server lives in the login session and persists.</p>
+</div>
+
+<h2>install.sh — behaviour</h2>
+<div class="sym">
+  <h3 id="install"><code>install.sh [--no-boot]</code></h3>
+  <p>Idempotent installer. Resolves its own repo location, then: (1) symlinks
+  <code>cj</code>, <code>claude-session</code>, <code>restore-claude</code> into
+  <code>~/.local/bin</code>; (2) ensures <code>~/.tmux.conf</code> sources this
+  repo's <code>tmux.conf</code>; (3) writes and enables the systemd user service
+  pointing at the repo's <code>tmux.conf</code> (skipped with <code>--no-boot</code>);
+  (4) writes the desktop entry invoking <code>cj</code>. Regenerating the unit
+  and desktop file from the resolved repo path makes the install work from any
+  clone location.</p>
+</div>
+
+<h2>cj — claude-join</h2>
+<p>A flat bash script (no functions) that attaches to the persistent
+<code>claude</code> session. Documented behaviour:</p>
+<div class="sym">
+  <h3 id="cj"><code>cj [claude-args…]</code></h3>
+  <ul>
+    <li>If <code>$TMUX</code> is set (already inside tmux): <code>exec</code>s the
+      real Claude CLI in the current pane — no nesting.</li>
+    <li>Otherwise ensures the <code>claude</code> session exists (fallback if the
+      boot service hasn't started it), then <strong>reuses</strong> an idle
+      shell window by launching Claude in it, or opens a <strong>new</strong>
+      window if every window is busy, and attaches.</li>
+  </ul>
+  <p><strong>Env:</strong> <code>CJ_CLAUDE</code> overrides the Claude binary
+  path (default <code>~/.local/bin/claude</code>); used for testing and if the
+  binary moves.</p>
+  <p><strong>Does not shadow</strong> <code>claude</code> — that still launches a
+  plain, non-tmux instance.</p>
+</div>
+
+<h2>claude-tmux.service — boot autostart</h2>
+<p>A systemd <em>user</em> service (<code>~/.config/systemd/user/claude-tmux.service</code>)
+that starts the statically-named session at boot.</p>
+<table>
+  <tr><th>Directive</th><th>Why</th></tr>
+  <tr><td><code>Type=forking</code></td><td>tmux daemonizes the server and the launching client exits.</td></tr>
+  <tr><td><code>ExecStart=tmux -f …/tmux.conf new-session -d -s claude</code></td><td>Creates the server + session in the unit's cgroup.</td></tr>
+  <tr><td><code>ExecStop=tmux kill-session -t claude</code></td><td>Clean teardown on stop.</td></tr>
+  <tr><td><code>RemainAfterExit=yes</code></td><td>Unit stays active after the forking launcher exits.</td></tr>
+  <tr><td><code>WantedBy=default.target</code></td><td>Enabled to start at boot; linger keeps it across logout.</td></tr>
+</table>
+<p>The server lives under
+<code>user@1000.service/app.slice/claude-tmux.service</code> — owned by the user
+manager, so it (and every Claude instance spawned inside it) is independent of
+any launching terminal.</p>
+
+<h2>tmux.conf — key settings</h2>
+<table>
+  <tr><th>Setting</th><th>Why</th></tr>
+  <tr><td><code>mouse on</code></td><td>Termux passes touches as clicks — tap the status bar to switch windows.</td></tr>
+  <tr><td><code>base-index 1</code> / <code>pane-base-index 1</code></td><td>Windows start at 1 for easier thumb reach.</td></tr>
+  <tr><td><code>escape-time 10</code></td><td>Snappier <code>Ctrl-b</code> on mobile soft keyboards.</td></tr>
+  <tr><td><code>aggressive-resize on</code></td><td>Each window sizes to the attached client, so a grouped phone view doesn't shrink the laptop.</td></tr>
+  <tr><td><code>history-limit 50000</code></td><td>Scroll back through long Claude outputs.</td></tr>
+  <tr><td><code>Tc</code> terminal-override</td><td>Truecolor for Claude's TUI.</td></tr>
+</table>
+
+<h2>Usage</h2>
+<pre>claude-session frontend backend docs        # one Claude per window
+claude-session api:~/src/api web:~/src/web  # set a starting dir per window
+claude-session -s review pr1 pr2            # a second, separate session
+ssh parrot -t 'claude-session -g'           # attach from phone, own size</pre>
+
+<h3>Options</h3>
+<table>
+  <tr><th>Flag</th><th>Effect</th></tr>
+  <tr><td><code>-s NAME</code></td><td>Session name (default <code>claude</code>).</td></tr>
+  <tr><td><code>-g</code></td><td>Grouped attach view with independent size — use from the phone.</td></tr>
+  <tr><td><code>-n</code></td><td>No-attach: create the session but stay detached.</td></tr>
+  <tr><td><code>-h</code></td><td>Show help.</td></tr>
+</table>
+
+<h2>Navigation cheat sheet (on the phone)</h2>
+<table>
+  <tr><th>Action</th><th>Keys</th></tr>
+  <tr><td>Window menu (best on mobile)</td><td><code>Ctrl-b w</code></td></tr>
+  <tr><td>Next / previous window</td><td><code>Ctrl-b n</code> / <code>Ctrl-b p</code></td></tr>
+  <tr><td>Jump to window N</td><td><code>Ctrl-b 1</code> … <code>Ctrl-b 9</code></td></tr>
+  <tr><td>Detach (leave running)</td><td><code>Ctrl-b d</code></td></tr>
+</table>
+</body>
+</html>
