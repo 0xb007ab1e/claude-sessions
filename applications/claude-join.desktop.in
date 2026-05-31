@@ -3,8 +3,10 @@ Type=Application
 Name=Claude (join tmux)
 GenericName=Claude session manager
 Comment=Attach to the persistent Claude tmux session and start/reuse an instance
-Exec=konsole -e /home/b007ab1e/.local/bin/cj
+# @EXEC@ and @TERMINAL_FLAG@ are filled in by install.sh: it detects an available
+# terminal emulator and points Exec at the installed `cj`.
+Exec=@EXEC@
+Terminal=@TERMINAL_FLAG@
 Icon=utilities-terminal
-Terminal=false
 Categories=Development;Utility;
 Keywords=claude;tmux;ai;

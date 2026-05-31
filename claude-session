@@ -1,36 +1,46 @@
 #!/usr/bin/env bash
 # claude-session — spin up (or attach to) a tmux session with one Claude Code
-# instance per window, tuned for viewing from a phone over Tailscale + Termux.
+# instance per window. Phone-friendly (Tailscale + Termux) via the bundled
+# tmux.conf. No machine-, user-, or path-specific assumptions.
 #
 # Usage:
-#   claude-session [options] [name[:dir] ...]
+#   claude-session [options] [name[:dir[:mode]] ...]
 #
-# Each positional argument becomes a tmux window running `claude`.
-#   name        window label
-#   name:dir    window label + starting directory for that instance
+# Each positional argument becomes a tmux window:
+#   name              window label (runs `claude`)
+#   name:dir          + starting directory (a leading ~ is expanded)
+#   name:dir:mode     + resume mode, one of:
+#                         continue -> claude --continue
+#                         resume   -> claude --resume
+#                         new | '' -> claude   (fresh; the default)
+#                     Set only the mode with an empty dir: name::resume
 #
 # Options:
-#   -s NAME     session name (default: claude)
-#   -g          create a GROUPED attach view (independent size) instead of
-#               creating/attaching the base session — use this from the phone
-#               so it doesn't shrink the laptop's display
-#   -n          no-attach: create the session but stay detached
-#   -h          show this help
+#   -s NAME   session name (default: $CLAUDE_TMUX_SESSION or "claude")
+#   -g        create a GROUPED attach view (independent size) of an existing
+#             session — use from a second client (e.g. phone) so it doesn't
+#             resize the other client's display
+#   -n        no-attach: create the session but stay detached
+#   -h        show this help
 #
 # Examples:
 #   claude-session frontend backend docs
 #   claude-session api:~/src/api web:~/src/web
-#   claude-session -s review pr1 pr2          # second session named "review"
-#   ssh parrot -t 'claude-session -g'         # attach from phone, own size
+#   claude-session app:~/src/app:continue notes::resume
+#   claude-session -s review pr1 pr2
+#   ssh <host> -t 'claude-session -g'        # grouped attach from another machine
 
 set -euo pipefail
 
-CONF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tmux.conf"
-SESSION="claude"
+# Resolve the bundled config even when invoked via a symlink on PATH.
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+CONF="$(cd "$(dirname "$SELF")" && pwd)/tmux.conf"
+SESSION="${CLAUDE_TMUX_SESSION:-claude}"
 GROUPED=0
 ATTACH=1
 
-usage() { sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+# Print the contiguous comment header (after the shebang) as help.
+usage() { awk 'NR>1 && /^#/{sub(/^# ?/,""); print; next} NR>1{exit}' "$SELF"; exit "${1:-0}"; }
 
 while getopts ":s:gnh" opt; do
   case "$opt" in
@@ -45,26 +55,28 @@ done
 shift $((OPTIND - 1))
 
 # Default window set when none are given.
-if [ "$#" -eq 0 ]; then
-  set -- main
-fi
+[ "$#" -eq 0 ] && set -- main
 
 tmux="tmux -f $CONF"
 
-# Are we inside a tmux client already? Use switch-client instead of attach.
 in_tmux() { [ -n "${TMUX:-}" ]; }
 
 attach_or_switch() {
   local target="$1"
-  if in_tmux; then
-    tmux switch-client -t "$target"
-  else
-    $tmux attach-session -t "$target"
-  fi
+  if in_tmux; then tmux switch-client -t "$target"; else $tmux attach-session -t "$target"; fi
+}
+
+# Map a mode keyword to the command launched in the window.
+claude_cmd() {
+  case "${1:-}" in
+    continue) echo 'claude --continue' ;;
+    resume)   echo 'claude --resume' ;;
+    *)        echo 'claude' ;;
+  esac
 }
 
 # Grouped view: a throwaway session sharing the base session's windows but
-# sized to THIS client. Lets the phone attach without resizing the laptop.
+# sized to THIS client. Lets a second client attach without resizing the first.
 if [ "$GROUPED" -eq 1 ]; then
   if ! $tmux has-session -t "$SESSION" 2>/dev/null; then
     echo "no base session '$SESSION' to group with — start it first" >&2
@@ -96,22 +108,18 @@ fi
 first=1
 first_label=""
 for entry in "$@"; do
-  label="${entry%%:*}"
-  dir=""
-  if [ "$entry" != "$label" ]; then
-    dir="${entry#*:}"
-    dir="${dir/#\~/$HOME}"   # expand a leading ~
-  fi
+  IFS=: read -r label dir mode <<<"$entry"
+  [ -n "$dir" ] && dir="${dir/#\~/$HOME}"   # expand a leading ~
+  cmd="$(claude_cmd "$mode")"
 
   if [ "$first" -eq 1 ]; then
     $tmux new-session -d -s "$SESSION" -n "$label" ${dir:+-c "$dir"}
-    first=0
-    first_label="$label"
+    first=0; first_label="$label"
   else
     $tmux new-window -t "$SESSION" -n "$label" ${dir:+-c "$dir"}
   fi
-  # Launch Claude in that window. Sent as keys so the shell stays if claude exits.
-  $tmux send-keys -t "${SESSION}:${label}" 'claude' C-m
+  # Sent as keys so the shell stays if claude exits.
+  $tmux send-keys -t "${SESSION}:${label}" "$cmd" C-m
 done
 
 # Select by name, not index — correct whether base-index is 0 or 1.
@@ -122,5 +130,5 @@ if [ "$ATTACH" -eq 1 ]; then
   attach_or_switch "$SESSION"
 else
   echo "detached. attach with:  tmux attach -t $SESSION"
-  echo "from phone (own size):  ssh parrot -t 'claude-session -g -s $SESSION'"
+  echo "grouped from another client:  ssh \$(hostname -s) -t 'claude-session -g -s $SESSION'"
 fi

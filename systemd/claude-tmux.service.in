@@ -1,0 +1,17 @@
+[Unit]
+Description=Persistent tmux session for managing Claude instances
+Documentation=file://@REPO@/README.md
+After=default.target
+
+[Service]
+Type=forking
+# Placeholders (@TMUX@, @TMUX_CONF@, @SESSION@) are filled in by install.sh for
+# the current checkout, so this is not tied to any path, user, or host.
+ExecStart=@TMUX@ -f @TMUX_CONF@ new-session -d -s @SESSION@
+ExecStop=@TMUX@ kill-session -t @SESSION@
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

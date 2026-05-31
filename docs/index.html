@@ -19,21 +19,21 @@
 </style>
 </head>
 <body>
-<h1>tmux-session</h1>
-<p>Stream multiple <a href="https://claude.com/claude-code">Claude Code</a> instances
-from a laptop to a phone over Tailscale + Termux. One tmux session, one Claude
-instance per window, tuned for a small touchscreen.</p>
+<h1>claude-sessions</h1>
+<p>Manage and stream multiple <a href="https://claude.com/claude-code">Claude Code</a>
+instances inside a single, persistent tmux session — reachable from a phone over
+Tailscale + Termux, tuned for a small touchscreen. One tmux session, one Claude
+per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
 
 <h2>Files</h2>
 <table>
   <tr><th>File</th><th>Purpose</th></tr>
   <tr><td><a href="../cj"><code>cj</code></a></td><td>Primary join command — attach to the persistent session, reuse/spawn an instance.</td></tr>
-  <tr><td><a href="../claude-session"><code>claude-session</code></a></td><td>General launcher: build a named session with one Claude per window.</td></tr>
-  <tr><td><a href="../restore-claude"><code>restore-claude</code></a></td><td>Rebuild the 6-window resume layout (recovery helper).</td></tr>
+  <tr><td><a href="../claude-session"><code>claude-session</code></a></td><td>General launcher: build a named session with one Claude per window (with per-window resume mode).</td></tr>
   <tr><td><a href="../tmux.conf"><code>tmux.conf</code></a></td><td>Phone-friendly tmux settings; sourced by <code>~/.tmux.conf</code>.</td></tr>
-  <tr><td><a href="../install.sh"><code>install.sh</code></a></td><td>Idempotent installer: symlinks, tmux config, systemd unit, desktop entry.</td></tr>
-  <tr><td><a href="../systemd/claude-tmux.service"><code>systemd/claude-tmux.service</code></a></td><td>User service that starts the session at boot.</td></tr>
-  <tr><td><a href="../applications/claude-join.desktop"><code>applications/claude-join.desktop</code></a></td><td>Desktop shortcut that runs <code>cj</code>.</td></tr>
+  <tr><td><a href="../install.sh"><code>install.sh</code></a></td><td>Portable, idempotent installer: symlinks, tmux config, systemd unit, desktop entry.</td></tr>
+  <tr><td><a href="../systemd/claude-tmux.service.in"><code>systemd/claude-tmux.service.in</code></a></td><td>Template for the boot-autostart user service (placeholders filled at install).</td></tr>
+  <tr><td><a href="../applications/claude-join.desktop.in"><code>applications/claude-join.desktop.in</code></a></td><td>Template for the desktop shortcut (terminal detected at install).</td></tr>
   <tr><td><a href="../README.md"><code>README.md</code></a></td><td>Quick reference.</td></tr>
 </table>
 
@@ -42,10 +42,20 @@ instance per window, tuned for a small touchscreen.</p>
 
 <div class="sym">
   <h3 id="usage"><code>usage(exit_code = 0)</code></h3>
-  <p>Prints the header comment block (lines 2–30 of the script) as help text by
-  stripping the leading <code>#</code>, then exits with <code>exit_code</code>.
-  Invoked by <code>-h</code> and on any option-parsing error.</p>
+  <p>Prints the contiguous comment header (everything after the shebang up to the
+  first non-comment line) as help text via <code>awk</code>, stripping the leading
+  <code>#</code>, then exits with <code>exit_code</code>. Robust to edits that
+  change the header length. Invoked by <code>-h</code> and on any option error.</p>
   <p><strong>Args:</strong> <code>$1</code> — exit status (default <code>0</code>).</p>
+</div>
+
+<div class="sym">
+  <h3 id="claude_cmd"><code>claude_cmd(mode)</code></h3>
+  <p>Maps a window's <code>mode</code> keyword to the command launched in it:
+  <code>continue</code> → <code>claude --continue</code>, <code>resume</code> →
+  <code>claude --resume</code>, anything else (including empty / <code>new</code>)
+  → plain <code>claude</code>. Drives the <code>name:dir:mode</code> argument form.</p>
+  <p><strong>Args:</strong> <code>$1</code> — mode keyword.</p>
 </div>
 
 <div class="sym">
@@ -65,30 +75,41 @@ instance per window, tuned for a small touchscreen.</p>
   <p><strong>Args:</strong> <code>$1</code> — target session name.</p>
 </div>
 
-<h2>restore-claude — functions</h2>
-<div class="sym">
-  <h3 id="rc-build"><code>build()</code></h3>
-  <p>Creates the six-window <code>claude</code> session: <code>planner</code>,
-  <code>security</code>, <code>mail-bot</code> (each running
-  <code>claude --continue</code>) and <code>lab-1</code>/<code>lab-2</code>/<code>lab-3</code>
-  (each running <code>claude --resume</code> so you pick the conversation),
-  with the correct starting directory per window. If the session already exists
-  the script attaches instead of calling this.</p>
-  <p><strong>Note:</strong> must be run from a real terminal/SSH shell, not a
-  Claude Code tool, so the tmux server lives in the login session and persists.</p>
-</div>
-
 <h2>install.sh — behaviour</h2>
 <div class="sym">
   <h3 id="install"><code>install.sh [--no-boot]</code></h3>
-  <p>Idempotent installer. Resolves its own repo location, then: (1) symlinks
-  <code>cj</code>, <code>claude-session</code>, <code>restore-claude</code> into
-  <code>~/.local/bin</code>; (2) ensures <code>~/.tmux.conf</code> sources this
-  repo's <code>tmux.conf</code>; (3) writes and enables the systemd user service
-  pointing at the repo's <code>tmux.conf</code> (skipped with <code>--no-boot</code>);
-  (4) writes the desktop entry invoking <code>cj</code>. Regenerating the unit
-  and desktop file from the resolved repo path makes the install work from any
-  clone location.</p>
+  <p>Portable, idempotent installer. Resolves its own checkout location and the
+  <code>tmux</code> binary, then: (1) symlinks <code>cj</code> and
+  <code>claude-session</code> into <code>$XDG_BIN_HOME</code> (default
+  <code>~/.local/bin</code>); (2) ensures <code>~/.tmux.conf</code> sources this
+  repo's <code>tmux.conf</code>; (3) fills <code>systemd/claude-tmux.service.in</code>
+  (binary, config path, session name) and enables it, best-effort enabling linger
+  (skipped with <code>--no-boot</code>, or if <code>systemctl</code> is absent);
+  (4) detects a terminal emulator and fills
+  <code>applications/claude-join.desktop.in</code> to launch <code>cj</code>.</p>
+  <p>Filling templates from resolved values is what makes the install independent
+  of user, path, host, and desktop.</p>
+  <p><strong>Env:</strong> <code>CLAUDE_TMUX_SESSION</code> (session name),
+  <code>TERMINAL</code> (preferred emulator), <code>CJ_CLAUDE</code> (Claude path).</p>
+</div>
+
+<h2>Templates</h2>
+<div class="sym">
+  <h3 id="svc-tmpl"><code>systemd/claude-tmux.service.in</code></h3>
+  <p>User service template. Placeholders <code>@TMUX@</code>, <code>@TMUX_CONF@</code>,
+  <code>@SESSION@</code>, <code>@REPO@</code> are substituted by <code>install.sh</code>.
+  <code>Type=forking</code> + <code>RemainAfterExit=yes</code> keep the daemonized
+  tmux server tracked in the unit's cgroup (under
+  <code>user@UID.service</code>), so it and every Claude instance inside it
+  survive logout (with linger).</p>
+</div>
+<div class="sym">
+  <h3 id="desktop-tmpl"><code>applications/claude-join.desktop.in</code></h3>
+  <p>Desktop-entry template. <code>@EXEC@</code> (detected terminal +
+  <code>cj</code>) and <code>@TERMINAL_FLAG@</code> are filled by
+  <code>install.sh</code>; <code>gnome-terminal</code> uses <code>--</code> while
+  others use <code>-e</code>. With no GUI terminal found, Exec is bare
+  <code>cj</code> and <code>Terminal=true</code> lets the desktop supply one.</p>
 </div>
 
 <h2>cj — claude-join</h2>
@@ -123,7 +144,7 @@ that starts the statically-named session at boot.</p>
   <tr><td><code>WantedBy=default.target</code></td><td>Enabled to start at boot; linger keeps it across logout.</td></tr>
 </table>
 <p>The server lives under
-<code>user@1000.service/app.slice/claude-tmux.service</code> — owned by the user
+<code>user@&lt;UID&gt;.service/app.slice/claude-tmux.service</code> — owned by the user
 manager, so it (and every Claude instance spawned inside it) is independent of
 any launching terminal.</p>
 
@@ -139,10 +160,12 @@ any launching terminal.</p>
 </table>
 
 <h2>Usage</h2>
-<pre>claude-session frontend backend docs        # one Claude per window
+<pre>cj                                          # join the persistent session (primary)
+claude-session frontend backend docs        # one Claude per window
 claude-session api:~/src/api web:~/src/web  # set a starting dir per window
+claude-session app:~/src/app:continue       # per-window resume mode
 claude-session -s review pr1 pr2            # a second, separate session
-ssh parrot -t 'claude-session -g'           # attach from phone, own size</pre>
+ssh &lt;host&gt; -t 'claude-session -g'           # grouped attach from another machine</pre>
 
 <h3>Options</h3>
 <table>

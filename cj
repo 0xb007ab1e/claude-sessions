@@ -15,9 +15,11 @@
 
 set -euo pipefail
 
-S=claude
+S="${CLAUDE_TMUX_SESSION:-claude}"
 CONF="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)/tmux.conf"
-REAL_CLAUDE="${CJ_CLAUDE:-$HOME/.local/bin/claude}"
+# Resolve the real Claude CLI: explicit override > PATH lookup > common fallback.
+REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
+REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
 T=(tmux -f "$CONF")
 
 # Already inside tmux: just run the real CLI here (no nesting).
