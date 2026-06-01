@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# claude-cd — move the CURRENT instance to a different project directory: pick a
+# directory, relaunch Claude there resuming the same conversation, and update the
+# registry. (Claude can't change its cwd while running, so this restarts it on
+# the same transcript.) Backs the menu's "Change dir" / prefix+G.
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+
+S="$(cs_session)"
+wid="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
+[ -n "$wid" ] || { echo "claude-cd: run from inside the session (the instance to move)"; exit 1; }
+
+cs_reconcile                                   # ensure the active row's transcript is linked
+reg="$(cs_registry)"
+row="$(awk -F'\t' -v w="$wid" '$4==w && $7=="active"{print; exit}' "$reg")"
+name="$(cs_field 1 "$row")"; olddir="$(cs_field 5 "$row")"; transcript="$(cs_field 9 "$row")"
+name="${name:-claude}"; olddir="${olddir:-$PWD}"
+
+newdir="$(cs_pick_dir "$olddir")"; newdir="${newdir/#\~/$HOME}"
+[ -n "$newdir" ] || { echo "cancelled."; exit 0; }
+[ -d "$newdir" ] || { echo "no such directory: $newdir" >&2; exit 1; }
+[ "$newdir" = "$olddir" ] && { echo "already in $newdir"; exit 0; }
+
+# Close the old window first (avoid two clients on the same conversation), then
+# relaunch in the new dir. claude-new records the new cwd; the old row reconciles
+# to closed via the window-unlinked hook.
+tmux kill-window -t "$S:$wid" 2>/dev/null || true
+cs_reconcile   # flip the old row to closed now (don't rely on the window-unlinked hook)
+if [ -n "$transcript" ]; then
+  exec "$HERE/claude-new" -i "$transcript" -c "$newdir" -n "$name"   # resume same conversation
+else
+  echo "claude-cd: couldn't link this conversation; opening a fresh instance in $newdir" >&2
+  exec "$HERE/claude-new" -c "$newdir" -n "$name"
+fi

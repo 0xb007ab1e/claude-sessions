@@ -5,7 +5,7 @@
 #
 # Registry: one TSV row per instance, columns:
 #   1 name  2 color  3 session  4 window_id  5 cwd  6 started_epoch
-#   7 status(active|closed)  8 ended_epoch
+#   7 status(active|closed)  8 ended_epoch  9 transcript_id
 
 # --- locations ---------------------------------------------------------------
 cs_session()     { echo "${CLAUDE_TMUX_SESSION:-claude}"; }
@@ -138,8 +138,9 @@ cs_apply_window() {
 }
 
 # Append an active row, keeping at most one active row per window id (a reused
-# window supersedes its previous active row). cs_record_active NAME COLOR WID CWD
-# Column 9 (transcript) starts empty and is filled later by cs_link_transcripts.
+# window supersedes its previous active row). cs_record_active NAME COLOR WID CWD [TRANSCRIPT]
+# Column 9 (transcript) defaults empty (filled later by cs_link_transcripts), or
+# is set when known up front (e.g. resuming a specific conversation).
 cs_record_active() {
   local reg tmp; reg="$(cs_registry)"; mkdir -p "$(cs_state_dir)"
   if [ -f "$reg" ]; then
@@ -147,7 +148,7 @@ cs_record_active() {
     awk -F'\t' -v wid="$3" '!($7=="active" && $4==wid)' "$reg" > "$tmp" && mv "$tmp" "$reg"
   fi
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$1" "$2" "$(cs_session)" "$3" "$4" "$(date +%s)" active "" "" >> "$reg"
+    "$1" "$2" "$(cs_session)" "$3" "$4" "$(date +%s)" active "" "${5:-}" >> "$reg"
 }
 
 # Claude's transcript directory for a cwd (non-alphanumerics → '-', matching
@@ -169,18 +170,27 @@ cs_find_transcript() {
 }
 
 # Fill the transcript id (column 9) for active rows that don't have one yet.
+# NB: `IFS=$'\t' read` collapses consecutive tabs (tab is IFS-whitespace), which
+# corrupts rows with an empty field (e.g. active rows have an empty `ended`). So
+# read the whole line and pull fields with cut, which preserves empty fields.
 cs_link_transcripts() {
-  local reg tmp name color sess wid cwd started status ended transcript
+  local reg tmp line status transcript cwd started newt
   reg="$(cs_registry)"; [ -f "$reg" ] || return 0
   tmp="$(mktemp)"
-  while IFS=$'\t' read -r name color sess wid cwd started status ended transcript; do
+  while IFS= read -r line; do
+    status="$(cut -f7 <<<"$line")"; transcript="$(cut -f9 <<<"$line")"
     if [ "$status" = active ] && [ -z "$transcript" ]; then
-      transcript="$(cs_find_transcript "$cwd" "$started")"
+      cwd="$(cut -f5 <<<"$line")"; started="$(cut -f6 <<<"$line")"
+      newt="$(cs_find_transcript "$cwd" "$started")"
+      [ -n "$newt" ] && line="$(cut -f1-8 <<<"$line")$(printf '\t%s' "$newt")"
     fi
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-      "$name" "$color" "$sess" "$wid" "$cwd" "$started" "$status" "$ended" "$transcript"
+    printf '%s\n' "$line"
   done < "$reg" > "$tmp" && mv "$tmp" "$reg"
 }
+
+# Read field N (1-based, tab-delimited, preserves empty fields) from a registry
+# row. cs_field N "row"
+cs_field() { cut -f"$1" <<<"$2"; }
 
 # Mark active rows closed when their window no longer exists.
 cs_reconcile() {

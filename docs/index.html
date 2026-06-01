@@ -39,6 +39,7 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-restore-all"><code>claude-restore-all</code></a></td><td>Reopen the last session's instances (boot hook or manual).</td></tr>
   <tr><td><a href="../claude-rename"><code>claude-rename</code></a></td><td>Rename an instance (window + registry).</td></tr>
   <tr><td><a href="../claude-shell"><code>claude-shell</code></a></td><td>Open an interactive shell window (for commands Claude can't run), in the current dir.</td></tr>
+  <tr><td><a href="../claude-cd"><code>claude-cd</code></a></td><td>Move the current instance to a chosen directory, relaunching it there (resume) + updating the registry.</td></tr>
   <tr><td><a href="../completions/claude-sessions.bash"><code>completions/claude-sessions.bash</code></a></td><td>Bash completion (sourced from <code>~/.bashrc</code>).</td></tr>
   <tr><td><a href="../tests/lib.bats"><code>tests/lib.bats</code></a></td><td>Unit tests for <code>lib.sh</code> (run with <code>bats tests/</code>).</td></tr>
   <tr><td><a href="../tests/integration.sh"><code>tests/integration.sh</code></a></td><td>End-to-end tests: fzf picker (send-keys in a pane) + popup exec (display-popup); private socket; skips without tmux/fzf.</td></tr>
@@ -118,6 +119,11 @@ row for the same window id (a reused window supersedes its old row).</p></div>
 <div class="sym"><h3 id="cs-reconcile"><code>cs_reconcile()</code></h3>
 <p>Mark <code>active</code> rows <code>closed</code> (stamping the end time) when
 their window no longer exists, then run <code>cs_link_transcripts</code>.</p></div>
+<div class="sym"><h3 id="cs-field"><code>cs_field(n, row)</code></h3>
+<p>Extract the nth tab field of a registry row with <code>cut</code> — preserving
+empty fields. (Plain <code>IFS=$'\t' read</code> collapses consecutive tabs, so it
+mis-parses rows with an empty field like an active row's blank <code>ended</code>;
+readers use this instead.)</p></div>
 <div class="sym"><h3 id="cs-project"><code>cs_project_dir(cwd) · cs_find_transcript(cwd, since) · cs_link_transcripts()</code></h3>
 <p>Map a cwd to Claude's transcript directory (non-alphanumerics → <code>-</code>,
 honoring <code>$CLAUDE_CONFIG_DIR</code>); find the newest <code>*.jsonl</code>
@@ -152,6 +158,14 @@ prompts via <a href="#cs-pickdir"><code>cs_pick_dir</code></a>), names it
 <code>sh:&lt;dir&gt;</code> in grey to stand apart from colored instances, and
 switches to it. Not recorded in the instance registry. Menu: "Shell here"
 (<code>prefix+B</code>).</p></div>
+<div class="sym"><h3 id="cmd-cd"><code>claude-cd</code></h3>
+<p>Move the <strong>current</strong> instance to a different project directory
+(menu "Change dir" / <code>prefix G</code>). Picks a dir via
+<a href="#cs-pickdir"><code>cs_pick_dir</code></a>, then — since Claude can't
+change its cwd while running — closes the window and <strong>relaunches Claude in
+the new dir resuming the same conversation</strong> (<code>claude-new -i
+&lt;transcript&gt;</code>), updating the registry's cwd. Run from inside the
+instance (it targets the current window).</p></div>
 <div class="sym"><h3 id="cmd-rename"><code>claude-rename [-t WINDOW_ID] [NEWNAME]</code></h3>
 <p>Rename the current (or targeted) instance, updating both the tmux window and
 its registry row. Prompts for the name if none is given. Bound to the menu
@@ -222,6 +236,7 @@ interactive attaches). Require tmux ≥ 3.2.</p>
   <tr><td><code>prefix + N</code></td><td>new instance (in the current window's dir)</td></tr>
   <tr><td><code>prefix + D</code></td><td>new instance in a directory you type (menu: "New in dir…")</td></tr>
   <tr><td><code>prefix + E</code></td><td>rename the current instance</td></tr>
+  <tr><td><code>prefix + G</code></td><td>change the current instance's directory (menu: "Change dir")</td></tr>
   <tr><td><code>prefix + B</code></td><td>open an interactive shell in the current dir (menu: "Shell here")</td></tr>
   <tr><td><code>prefix + R</code></td><td>resume a past conversation (<code>claude --resume</code>)</td></tr>
   <tr><td><code>prefix + O</code></td><td>reopen a closed instance</td></tr>

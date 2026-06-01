@@ -61,10 +61,11 @@ instances flip to *closed* automatically when their window goes away.
 | Key | Action |
 |---|---|
 | `prefix + C` | **menu** of all actions below |
-| `prefix + L` | list instances |
+| `prefix + L` | list instances — selectable picker (Enter: switch active / reopen closed) |
 | `prefix + N` | new instance (in the current window's directory) |
 | `prefix + D` | new instance in a directory you type ("New in dir…") |
 | `prefix + E` | rename the current instance |
+| `prefix + G` | change the current instance's directory (relaunch + resume) |
 | `prefix + B` | open an interactive shell in the current dir ("Shell here") |
 | `prefix + R` | resume a past conversation |
 | `prefix + O` | reopen a closed instance |
@@ -83,10 +84,11 @@ key — a bare key or `Ctrl-C` goes to Claude, not tmux):
 | **tap the session name** (far left of the status bar) | **open the menu** — best on phones/Termux (no function keys) |
 | mouse | tap a window name in the status bar to switch |
 
-CLI equivalents: `claude-new [-m resume|continue]`, `claude-restore`, `claude-ls`,
-`claude-rename [name]`, `claude-shell` (an interactive shell for commands Claude
-can't run — `sudo`, interactive logins, etc., in the current dir). Trim closed
-history with `claude-ls --prune [N]`.
+CLI equivalents: `claude-pick` (selectable list), `claude-new [-m resume|continue]`,
+`claude-restore`, `claude-ls`, `claude-rename [name]`, `claude-cd` (move the
+current instance to another directory, resuming), `claude-shell` (an interactive
+shell for commands Claude can't run — `sudo`, logins, etc.). Trim closed history
+with `claude-ls --prune [N]`.
 
 **Choosing the directory:** a new instance opens in the current window's
 directory by default. To pick one, use **New in dir…** (`prefix + D`) or
@@ -163,7 +165,7 @@ if absent). If `loginctl enable-linger` needs privileges, run once:
 systemctl --user disable --now claude-tmux.service
 rm -f ~/.config/systemd/user/claude-tmux.service ~/.config/claude-sessions/bindings.conf
 rm -f ~/.local/share/applications/claude-join.desktop
-rm -f ~/.local/bin/{cj,claude-session,claude-ls,claude-new,claude-restore,claude-popup}
+rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the real `claude`)
 # then remove the `source-file …/tmux.conf` line from ~/.tmux.conf
 ```
 
@@ -172,7 +174,8 @@ rm -f ~/.local/bin/{cj,claude-session,claude-ls,claude-new,claude-restore,claude
 | Path | What |
 |---|---|
 | `cj` | Primary join command (claude-join); `-a` auto-names |
-| `claude-ls` / `claude-new` / `claude-restore` | List / open / reopen instances |
+| `claude-ls` / `claude-pick` / `claude-new` / `claude-restore` | List / pick (switch·reopen) / open / reopen instances |
+| `claude-cd` / `claude-rename` / `claude-shell` | Move dir (resume) / rename / shell |
 | `claude-popup` | Run a view inside a tmux popup |
 | `claude-session` | General launcher — one Claude per window in a named session |
 | `lib.sh` | Shared helpers: config, naming, colors, registry |
