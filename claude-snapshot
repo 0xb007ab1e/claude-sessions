@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# claude-snapshot — record the currently-active instances (name + directory) to
+# a snapshot file, so they can be reopened after a reboot. Run automatically by
+# the systemd service's ExecStop (before the session is killed), and usable
+# manually at any time.
+set -eo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
+reg="$(cs_registry)"
+snap="$(cs_state_dir)/last-session.tsv"
+mkdir -p "$(cs_state_dir)"
+
+if [ -f "$reg" ]; then
+  awk -F'\t' -v OFS='\t' '$7=="active"{print $1, $5}' "$reg" > "$snap"
+else
+  : > "$snap"
+fi
+echo "snapshot: $(wc -l < "$snap" 2>/dev/null || echo 0) active instance(s) -> $snap"

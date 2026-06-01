@@ -32,7 +32,8 @@ STATE="${XDG_STATE_HOME:-$HOME/.local/state}/claude-sessions"
 mkdir -p "$BIN" "$APPS" "$UNITDIR" "$CSCONF" "$STATE"
 
 # 1. CLI shortcuts on PATH ----------------------------------------------------
-for f in cj claude-session claude-ls claude-new claude-restore claude-popup claude-notify; do
+for f in cj claude-session claude-ls claude-new claude-restore claude-popup \
+         claude-notify claude-snapshot claude-restore-all; do
   ln -sf "$REPO/$f" "$BIN/$f"
   echo "linked   $BIN/$f"
 done
@@ -62,6 +63,7 @@ if command -v systemctl >/dev/null 2>&1; then
       -e "s#@TMUX@#$TMUX_BIN#g" \
       -e "s#@TMUX_CONF@#$REPO/tmux.conf#g" \
       -e "s#@SESSION@#$SESSION#g" \
+      -e "s#@BIN@#$BIN#g" \
       "$REPO/systemd/claude-tmux.service.in" > "$UNITDIR/claude-tmux.service"
   echo "wrote    $UNITDIR/claude-tmux.service"
   systemctl --user daemon-reload

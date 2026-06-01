@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# claude-restore-all [--if-enabled] — reopen the instances captured in the last
+# snapshot (claude-snapshot), each resuming its directory's conversation. Run
+# automatically by the systemd service's ExecStartPost at boot, and usable
+# manually at any time.
+#
+#   --if-enabled   only act when config has `restore_on_boot = true`
+#                  (used by the boot hook so restore is opt-in)
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+
+if [ "${1:-}" = "--if-enabled" ]; then
+  [ "$(cs_config_get restore_on_boot false)" = "true" ] || exit 0
+fi
+
+snap="$(cs_state_dir)/last-session.tsv"
+[ -f "$snap" ] || { echo "no snapshot to restore."; exit 0; }
+
+n=0
+while IFS=$'\t' read -r name cwd; do
+  [ -n "$name" ] || continue
+  "$HERE/claude-new" -m continue -c "${cwd:-$HOME}" -n "$name" >/dev/null 2>&1 || true
+  n=$((n + 1))
+done < "$snap"
+echo "restored $n instance(s) from the last session"

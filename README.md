@@ -89,6 +89,14 @@ status bar and `claude-notify` fires a notification. Choose the backend in
 config (`notify = desktop | ntfy | pushover | none`); `ntfy`/`pushover` push to
 your **phone** (over Tailscale for self-hosted ntfy). See `config.example`.
 
+### Restore the whole session after a reboot
+
+The service snapshots active instances on stop (`claude-snapshot`) and, with
+`restore_on_boot = true` in config, reopens them at boot (`claude-restore-all`).
+Run it manually anytime (`claude-restore-all`) or from the menu ("Restore last
+session"). Snapshots are taken on graceful stop; a hard power-loss reboot reuses
+the previous snapshot.
+
 Manage the service:
 
 ```bash

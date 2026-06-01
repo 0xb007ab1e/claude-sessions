@@ -22,3 +22,7 @@ notify = desktop
 # notify         = pushover
 # pushover_token = <app token>
 # pushover_user  = <user key>
+
+# Reopen the previous session's instances automatically at boot (the systemd
+# service snapshots active instances on stop and reopens them on start).
+restore_on_boot = false

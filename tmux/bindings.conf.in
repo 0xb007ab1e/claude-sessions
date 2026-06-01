@@ -11,6 +11,7 @@ bind C display-menu -T "#[align=centre,bold] claude instances " \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "Resume conversation"  r "run-shell '@BIN@/claude-new -m resume'" \
   "Reopen closed"        o "display-popup -E -w 74% -h 74% '@BIN@/claude-restore'" \
+  "Restore last session" a "run-shell '@BIN@/claude-restore-all'" \
   "Stop current"         x "confirm-before -p 'stop instance #W? (y/n)' kill-window" \
   "Cheat sheet"          ? "display-popup -E -w 78% -h 82% '@BIN@/claude-popup help'"
 
@@ -31,6 +32,7 @@ bind -n F9 display-menu -T "#[align=centre,bold] claude instances " \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "Resume conversation"  r "run-shell '@BIN@/claude-new -m resume'" \
   "Reopen closed"        o "display-popup -E -w 74% -h 74% '@BIN@/claude-restore'" \
+  "Restore last session" a "run-shell '@BIN@/claude-restore-all'" \
   "Stop current"         x "confirm-before -p 'stop instance #W? (y/n)' kill-window" \
   "Cheat sheet"          ? "display-popup -E -w 78% -h 82% '@BIN@/claude-popup help'"
 # Navigation synonyms. Alt+arrows are ergonomic but their escape sequences vary

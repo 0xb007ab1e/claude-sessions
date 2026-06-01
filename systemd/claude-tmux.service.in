@@ -5,9 +5,13 @@ After=default.target
 
 [Service]
 Type=forking
-# Placeholders (@TMUX@, @TMUX_CONF@, @SESSION@) are filled in by install.sh for
-# the current checkout, so this is not tied to any path, user, or host.
+# Placeholders (@TMUX@, @TMUX_CONF@, @SESSION@, @BIN@) are filled in by
+# install.sh for the current checkout — not tied to any path, user, or host.
 ExecStart=@TMUX@ -f @TMUX_CONF@ new-session -d -s @SESSION@
+# Reopen last session's instances at boot (no-op unless restore_on_boot = true).
+ExecStartPost=@BIN@/claude-restore-all --if-enabled
+# Snapshot active instances before tearing the session down.
+ExecStop=@BIN@/claude-snapshot
 ExecStop=@TMUX@ kill-session -t @SESSION@
 RemainAfterExit=yes
 Restart=on-failure
