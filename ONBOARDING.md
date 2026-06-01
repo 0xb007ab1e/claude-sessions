@@ -38,6 +38,7 @@ The menu (`prefix C` / `F9` / tap the status bar):
 | New instance (current dir) | `prefix N` | New |
 | New instance in a chosen dir (fzf typeahead) | `prefix D` | New in dir… |
 | Rename instance | `prefix E` | Rename |
+| Change the current instance's directory (relaunch + resume) | `prefix G` | Change dir |
 | Resume a past conversation | `prefix R` | Resume |
 | Reopen a closed instance (exact convo, in its dir) | `prefix O` | Reopen closed |
 | Stop current instance | `prefix X` | Stop |
