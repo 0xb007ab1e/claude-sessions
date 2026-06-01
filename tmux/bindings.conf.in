@@ -44,3 +44,6 @@ bind -n F8      next-window
 
 # Keep the active/closed registry fresh when a window closes.
 set-hook -g window-unlinked 'run-shell "@BIN@/claude-ls --reconcile-only"'
+
+# Notify when an instance rings the bell (Claude finished / needs input).
+set-hook -g alert-bell 'run-shell "@BIN@/claude-notify bell \"#{window_name}\" \"#{session_name}\""'

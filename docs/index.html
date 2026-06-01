@@ -33,6 +33,7 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-new"><code>claude-new</code></a></td><td>Open a new named/colored instance (new / resume / continue).</td></tr>
   <tr><td><a href="../claude-restore"><code>claude-restore</code></a></td><td>Reopen a closed instance from the registry in its old directory.</td></tr>
   <tr><td><a href="../claude-popup"><code>claude-popup</code></a></td><td>Run a view (ls/help) inside a tmux popup, pausing for a key.</td></tr>
+  <tr><td><a href="../claude-notify"><code>claude-notify</code></a></td><td>Notify (desktop / ntfy / Pushover) when an instance needs attention.</td></tr>
   <tr><td><a href="../claude-session"><code>claude-session</code></a></td><td>General launcher: build a named session, one Claude per window (resume modes, <code>-a</code>).</td></tr>
   <tr><td><a href="../lib.sh"><code>lib.sh</code></a></td><td>Shared helpers: config, naming schemes, color palette, the instance registry.</td></tr>
   <tr><td><a href="../config.example"><code>config.example</code></a></td><td>Default config (<code>name_scheme</code>, <code>auto_name</code>).</td></tr>
@@ -114,6 +115,16 @@ you pick one (fzf if present, else a numbered prompt), and reopen it via
 <p>Runs <code>claude-ls</code> or prints the cheat sheet, then waits for Enter —
 so a tmux <code>display-popup</code> binding stays readable. Keeps complex
 quoting out of the key bindings.</p></div>
+<div class="sym"><h3 id="cmd-notify"><code>claude-notify [event] [window] [session]</code></h3>
+<p>Send an "instance needs attention" notification. Wired to tmux's
+<code>alert-bell</code> hook, which fires when a Claude window rings the terminal
+bell (Claude rings it on completion / when it needs input — enable the bell in
+Claude). The bell also flags the window yellow in the status bar
+(<code>monitor-bell</code>). Backend from config <code>notify</code>:
+<code>desktop</code> (<code>notify-send</code>), <code>ntfy</code>
+(<code>$ntfy_server/$ntfy_topic</code> — pushes to your phone over Tailscale),
+<code>pushover</code> (<code>$pushover_token</code>/<code>$pushover_user</code>),
+or <code>none</code>. Missing tools/keys degrade to a safe no-op.</p></div>
 
 <h2>Key bindings &amp; cheat sheet (prefix is Ctrl-b)</h2>
 <p>Generated into <code>~/.config/claude-sessions/bindings.conf</code> from

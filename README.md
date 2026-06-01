@@ -81,6 +81,14 @@ key — a bare key or `Ctrl-C` goes to Claude, not tmux):
 
 CLI equivalents: `claude-new [-m resume|continue]`, `claude-restore`, `claude-ls`.
 
+### Attention notifications
+
+When a Claude instance rings the terminal bell (it does on completion / when it
+needs input — enable the bell in Claude), its window is flagged **yellow** in the
+status bar and `claude-notify` fires a notification. Choose the backend in
+config (`notify = desktop | ntfy | pushover | none`); `ntfy`/`pushover` push to
+your **phone** (over Tailscale for self-hosted ntfy). See `config.example`.
+
 Manage the service:
 
 ```bash
