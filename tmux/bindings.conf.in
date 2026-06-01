@@ -6,6 +6,7 @@
 
 # ── Action menu (prefix + C) ────────────────────────────────────────────────
 bind C display-menu -T "#[align=centre,bold] claude instances " \
+  "Switch instance"      s "choose-tree -Zw" \
   "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-popup ls'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "Resume conversation"  r "run-shell '@BIN@/claude-new -m resume'" \
@@ -25,14 +26,21 @@ bind ? display-popup -E -w 78% -h 82% "@BIN@/claude-popup help"
 # tmux intercepts these before the app, so no Ctrl-b is needed. F9 opens the
 # same menu as prefix+C; Alt+arrows switch instances without leaving Claude.
 bind -n F9 display-menu -T "#[align=centre,bold] claude instances " \
+  "Switch instance"      s "choose-tree -Zw" \
   "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-popup ls'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "Resume conversation"  r "run-shell '@BIN@/claude-new -m resume'" \
   "Reopen closed"        o "display-popup -E -w 74% -h 74% '@BIN@/claude-restore'" \
   "Stop current"         x "confirm-before -p 'stop instance #W? (y/n)' kill-window" \
   "Cheat sheet"          ? "display-popup -E -w 78% -h 82% '@BIN@/claude-popup help'"
+# Navigation synonyms. Alt+arrows are ergonomic but their escape sequences vary
+# by terminal (Konsole/GNOME/xterm differ), so F7/F8 are provided as a
+# universally-delivered fallback. The menu's "Switch instance" (choose-tree)
+# needs no special keys at all and works in every terminal.
 bind -n M-Left  previous-window
 bind -n M-Right next-window
+bind -n F7      previous-window
+bind -n F8      next-window
 
 # Keep the active/closed registry fresh when a window closes.
 set-hook -g window-unlinked 'run-shell "@BIN@/claude-ls --reconcile-only"'

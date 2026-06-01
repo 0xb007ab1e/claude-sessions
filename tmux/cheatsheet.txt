@@ -12,7 +12,9 @@
 
   No prefix needed — works even inside a running Claude:
     F9          open the instance menu (one key)
-    Alt+Left/Right   previous / next instance
+    F9 then s   switch instance (built-in chooser; works in any terminal)
+    F7 / F8     previous / next instance  (portable everywhere)
+    Alt+Left/Right   previous / next instance  (if your terminal sends them)
     mouse: tap the colored name in the status bar to switch
     NOTE: a bare key or Ctrl-C goes to Claude, not tmux — use the prefix or F9
 

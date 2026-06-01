@@ -74,7 +74,9 @@ key — a bare key or `Ctrl-C` goes to Claude, not tmux):
 | Key | Action |
 |---|---|
 | `F9` | open the instance menu (one key) |
-| `Alt + ←/→` | previous / next instance |
+| `F9` then `s` | switch instance (built-in chooser — works in any terminal) |
+| `F7` / `F8` | previous / next instance (portable everywhere) |
+| `Alt + ←/→` | previous / next (if your terminal sends these) |
 | mouse | tap the colored name in the status bar to switch |
 
 CLI equivalents: `claude-new [-m resume|continue]`, `claude-restore`, `claude-ls`.

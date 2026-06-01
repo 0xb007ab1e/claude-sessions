@@ -130,7 +130,9 @@ interactive attaches). Require tmux ≥ 3.2.</p>
   <tr><td><code>prefix + X</code></td><td>stop the current instance (confirm)</td></tr>
   <tr><td><code>prefix + ?</code></td><td>cheat-sheet popup (overrides the default list-keys; use <code>prefix : list-keys</code> for all tmux keys)</td></tr>
   <tr><td><code>F9</code></td><td><strong>no prefix</strong> — opens the menu even inside a running Claude TUI</td></tr>
-  <tr><td><code>Alt + ←/→</code></td><td><strong>no prefix</strong> — previous / next instance</td></tr>
+  <tr><td><code>F9</code> then <code>s</code></td><td>Switch instance via tmux's built-in chooser — works in <em>every</em> terminal</td></tr>
+  <tr><td><code>F7</code> / <code>F8</code></td><td><strong>no prefix</strong> — previous / next instance (portable everywhere)</td></tr>
+  <tr><td><code>Alt + ←/→</code></td><td><strong>no prefix</strong> — previous / next (terminal-dependent escape sequences)</td></tr>
 </table>
 <p>A full-screen Claude captures every key except the prefix (a bare key or
 <code>Ctrl-C</code> goes to Claude), so the root-table <code>F9</code> /
