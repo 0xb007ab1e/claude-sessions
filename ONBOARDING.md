@@ -52,13 +52,62 @@ CLI equivalents: `claude-ls`, `claude-new [-m resume|continue] [-D]`,
 `claude-restore`, `claude-restore-all`, `claude-rename`, `claude-shell`,
 `claude-session` (multi-window layouts).
 
-## From your phone (Tailscale + Termux)
+## Phone setup (Tailscale + Termux)
+
+Reach the session from your phone over your private tailnet — no port-forwarding,
+no public exposure.
+
+### 1. Tailscale (one-time)
+
+**On the machine** running the session:
+```bash
+# Debian/Ubuntu/Parrot:
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up                 # sign in (opens a browser/URL)
+sudo systemctl enable --now ssh   # make sure sshd is running
+tailscale status                  # note the machine's MagicDNS name (e.g. host.tailnet.ts.net)
+tailscale ip -4                   # …or its 100.x.y.z address
+```
+
+**On the phone:** install the **Tailscale** app (Play Store / App Store), sign in
+to the **same** account/tailnet, and toggle it on. The phone can now reach the
+machine by its MagicDNS name or `100.x` IP.
+
+### 2. Termux (one-time)
+
+1. Install **Termux** (F-Droid is recommended over the Play Store build).
+2. Install an SSH client and set up a key:
+   ```bash
+   pkg update && pkg install openssh
+   ssh-keygen -t ed25519           # press Enter through the prompts
+   # then authorize it on the machine (run once):
+   ssh-copy-id <user>@<host>       # <host> = MagicDNS name or 100.x IP
+   ```
+3. *(Optional, recommended)* add keys Termux's touch keyboard lacks — so the tmux
+   prefix (`Ctrl-b`), completion (`Tab`) and `F7/F8/F9` work. Edit
+   `~/.termux/termux.properties`:
+   ```
+   extra-keys = [['ESC','CTRL','ALT','TAB','-','F7','F8','F9','?']]
+   ```
+   then long-press Termux → **Reload settings**.
+4. *(Optional)* a one-tap alias — add to Termux `~/.bashrc`:
+   ```bash
+   alias cj='ssh <user>@<host> -t "bash -lc cj"'
+   ```
+
+### 3. Connect
 
 ```bash
-ssh <your-host> -t 'bash -lc cj'          # join (login shell so PATH is set)
-ssh <your-host> -t 'tmux attach -t claude'
+ssh <user>@<host> -t 'bash -lc cj'        # join the session (login shell so PATH has ~/.local/bin)
+ssh <user>@<host> -t 'tmux attach -t claude'   # or just attach
 ```
-The session is reachable over your tailnet; instances keep running when you detach.
+Instances keep running when you disconnect. On the phone you don't need function
+keys: **tap the session name** (far left of the status bar) to open the menu, or
+press `Ctrl-b` (from the extra-keys row) then a letter. Switch instances by
+tapping a window name in the status bar.
+
+> Tip: replace `<host>` with the MagicDNS name from `tailscale status`. For a
+> nicer name/HTTPS you can also use `tailscale serve` from the [README](README.md).
 
 ## Configure it
 
