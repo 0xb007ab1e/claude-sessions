@@ -34,7 +34,7 @@ The menu (`prefix C` / `F9` / tap the status bar):
 | Action | Key | Menu |
 |---|---|---|
 | **Open the menu** | `prefix C` (or **`F9`**, or **tap the session name** in the status bar) | — |
-| List instances (active + closed) | `prefix L` | List |
+| List instances — pick to **switch** (active) or **reopen** (closed) | `prefix L` | List |
 | New instance (current dir) | `prefix N` | New |
 | New instance in a chosen dir (fzf typeahead) | `prefix D` | New in dir… |
 | Rename instance | `prefix E` | Rename |

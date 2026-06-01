@@ -29,7 +29,8 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
 <table>
   <tr><th>File</th><th>Purpose</th></tr>
   <tr><td><a href="../cj"><code>cj</code></a></td><td>Primary join command — attach, reuse/spawn an instance, optional auto-name.</td></tr>
-  <tr><td><a href="../claude-ls"><code>claude-ls</code></a></td><td>List active + closed instances with names and colors.</td></tr>
+  <tr><td><a href="../claude-ls"><code>claude-ls</code></a></td><td>Print active + closed instances with names and colors.</td></tr>
+  <tr><td><a href="../claude-pick"><code>claude-pick</code></a></td><td>Interactive picker (fzf): select an active instance to switch, a closed one to reopen.</td></tr>
   <tr><td><a href="../claude-new"><code>claude-new</code></a></td><td>Open a new named/colored instance (new / resume / continue).</td></tr>
   <tr><td><a href="../claude-restore"><code>claude-restore</code></a></td><td>Reopen a closed instance from the registry in its old directory.</td></tr>
   <tr><td><a href="../claude-popup"><code>claude-popup</code></a></td><td>Run a view (ls/help) inside a tmux popup, pausing for a key.</td></tr>
@@ -136,6 +137,13 @@ drop older closed history.</p></div>
 name dots, directory, and uptime/closed-ago. <code>--reconcile-only</code> just
 updates the registry (used by the tmux close hook); <code>--prune [N]</code>
 trims closed history to the newest N (default 50).</p></div>
+<div class="sym"><h3 id="cmd-pick"><code>claude-pick</code></h3>
+<p>The interactive, scrollable, type-to-filter picker behind <strong>List
+instances</strong> (<code>prefix L</code> / menu <code>l</code>). Selecting an
+<strong>active</strong> instance switches tmux to its window; selecting a
+<strong>closed</strong> one reopens it via <code>claude-new -i &lt;transcript&gt;</code>
+in its saved directory — resuming its conversation and loading that project's
+<code>CLAUDE.md</code> + memory. Falls back to the read-only list without fzf.</p></div>
 <div class="sym"><h3 id="cmd-shell"><code>claude-shell [-c DIR] [-D] [-n NAME]</code></h3>
 <p>Open a window running an interactive login shell (no Claude) for things Claude
 can't do itself — <code>sudo</code>, interactive logins/TUIs, etc. Opens in the
@@ -210,7 +218,7 @@ interactive attaches). Require tmux ≥ 3.2.</p>
 <table>
   <tr><th>Key</th><th>Action</th></tr>
   <tr><td><code>prefix + C</code></td><td>open the action <strong>menu</strong> (all actions below)</td></tr>
-  <tr><td><code>prefix + L</code></td><td>list instances (popup)</td></tr>
+  <tr><td><code>prefix + L</code></td><td>list instances — selectable picker (Enter: switch active / reopen closed)</td></tr>
   <tr><td><code>prefix + N</code></td><td>new instance (in the current window's dir)</td></tr>
   <tr><td><code>prefix + D</code></td><td>new instance in a directory you type (menu: "New in dir…")</td></tr>
   <tr><td><code>prefix + E</code></td><td>rename the current instance</td></tr>
