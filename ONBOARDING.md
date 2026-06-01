@@ -54,20 +54,35 @@ CLI equivalents: `claude-ls`, `claude-new [-m resume|continue] [-D]`,
 
 ## Screenshots — menu actions & status bar
 
-What each action looks like (rendered mockups). Base:
+What every menu action looks like (rendered mockups), in menu order. Base:
 `…/main/docs/screenshots/`.
+
+**Switch instance** (menu `s`) — tmux choose-tree, works in any terminal
+![Switch instance](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-switch.png)
 
 **List instances** (`prefix L` / menu `l`)
 ![List instances](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-list.png)
 
+**New instance** (`prefix N` / menu `n`)
+![New instance](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-new.png)
+
 **New in dir…** (`prefix D` / menu `d`) — fzf typeahead over `search_dir`
 ![New in dir](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-new-in-dir.png)
+
+**Rename instance** (`prefix E` / menu `e`)
+![Rename instance](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-rename.png)
+
+**Shell here** (`prefix B` / menu `b`)
+![Shell here](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-shell.png)
+
+**Resume conversation** (`prefix R` / menu `r`)
+![Resume conversation](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-resume.png)
 
 **Reopen closed** (`prefix O` / menu `o`)
 ![Reopen closed](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-reopen-closed.png)
 
-**Rename instance** (`prefix E` / menu `e`)
-![Rename instance](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-rename.png)
+**Restore last session** (menu `a`)
+![Restore last session](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-restore-all.png)
 
 **Stop current** (`prefix X` / menu `x`)
 ![Stop current](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-stop.png)
