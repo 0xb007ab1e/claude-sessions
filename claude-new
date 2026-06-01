@@ -53,6 +53,8 @@ fi
 cs_apply_window "$S:$wid" "$name" "$color"
 cs_record_active "$name" "$color" "$wid" "$DIR"
 
-# If we're attached, jump to the new instance.
-[ -n "${TMUX:-}" ] && tmux select-window -t "$S:$wid"
+# Jump to the new instance. select-window sets the session's active window, so
+# the attached client (incl. when invoked from a tmux menu/key via run-shell,
+# where $TMUX isn't set) follows to it.
+tmux select-window -t "$S:$wid" 2>/dev/null || true
 echo "started instance '$name' ($MODE) in $DIR"
