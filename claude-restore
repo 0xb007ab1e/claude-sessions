@@ -37,6 +37,12 @@ fi
 sel_row="$(printf '%s\n' "${rows[@]}" | awk -F'\t' -v n="$choice" '$1==n{print; exit}')"
 IFS=$'\t' read -r _ dir transcript <<<"$sel_row"
 dir="${dir:-$HOME}"
+
+# Offer to change the directory (Enter keeps the saved one; edit to override).
+read -e -i "$dir" -r -p "reopen in directory: " _d 2>/dev/null && dir="${_d:-$dir}"
+dir="${dir/#\~/$HOME}"
+[ -d "$dir" ] || { echo "no such directory: $dir"; exit 1; }
+
 if [ -n "$transcript" ]; then
   echo "reopening '$choice' in $dir (exact conversation $transcript) ..."
   exec "$HERE/claude-new" -i "$transcript" -c "$dir" -n "$choice"

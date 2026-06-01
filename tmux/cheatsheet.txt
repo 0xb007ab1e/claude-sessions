@@ -5,7 +5,8 @@
   Claude instances  (need the prefix: press Ctrl-b, release, then the key)
     prefix C    open the instance menu (all actions below)
     prefix L    list active + closed instances (names & colors)
-    prefix N    new instance (auto-named)
+    prefix N    new instance (in the current window's directory)
+    prefix D    new instance in a directory you type ("New in dir…")
     prefix E    rename the current instance
     prefix R    resume a past conversation (picker)
     prefix O    reopen a closed instance (in its old directory)
