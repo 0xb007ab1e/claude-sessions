@@ -65,6 +65,7 @@ instances flip to *closed* automatically when their window goes away.
 | `prefix + N` | new instance (in the current window's directory) |
 | `prefix + D` | new instance in a directory you type ("New in dir…") |
 | `prefix + E` | rename the current instance |
+| `prefix + B` | open an interactive shell in the current dir ("Shell here") |
 | `prefix + R` | resume a past conversation |
 | `prefix + O` | reopen a closed instance |
 | `prefix + X` | stop the current instance (confirm) |
@@ -83,7 +84,9 @@ key — a bare key or `Ctrl-C` goes to Claude, not tmux):
 | mouse | tap a window name in the status bar to switch |
 
 CLI equivalents: `claude-new [-m resume|continue]`, `claude-restore`, `claude-ls`,
-`claude-rename [name]`. Trim closed history with `claude-ls --prune [N]`.
+`claude-rename [name]`, `claude-shell` (an interactive shell for commands Claude
+can't run — `sudo`, interactive logins, etc., in the current dir). Trim closed
+history with `claude-ls --prune [N]`.
 
 **Choosing the directory:** a new instance opens in the current window's
 directory by default. To pick one, use **New in dir…** (`prefix + D`) or

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# claude-shell — open an interactive shell window in the session, for commands
+# Claude can't run itself (sudo, interactive logins/TUIs, etc.). Opens in the
+# current window's directory by default. Not recorded in the instance registry.
+#
+#   claude-shell [-c DIR] [-D] [-n NAME]
+#     -c DIR   working directory (default: current window's dir, else $PWD)
+#     -D       prompt for the directory (completion / fzf typeahead)
+#     -n NAME  window name (default: "sh:<dir-basename>")
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+
+DIR="" NAME="" ASKDIR=0
+while getopts ":c:n:Dh" o; do
+  case "$o" in
+    c) DIR="$OPTARG" ;;
+    n) NAME="$OPTARG" ;;
+    D) ASKDIR=1 ;;
+    h) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "claude-shell: bad option" >&2; exit 1 ;;
+  esac
+done
+
+# Default to the current tmux window's directory (so the shell opens where you
+# are), falling back to $PWD.
+if [ -z "$DIR" ]; then
+  DIR="$(tmux display-message -p '#{pane_current_path}' 2>/dev/null || true)"
+  DIR="${DIR:-$PWD}"
+fi
+DIR="${DIR/#\~/$HOME}"
+[ "$ASKDIR" = 1 ] && { DIR="$(cs_pick_dir "$DIR")"; DIR="${DIR/#\~/$HOME}"; }
+[ -d "$DIR" ] || { echo "claude-shell: no such directory: $DIR" >&2; exit 1; }
+
+S="$(cs_session)"
+tmux -f "$HERE/tmux.conf" has-session -t "$S" 2>/dev/null || tmux new-session -d -s "$S"
+
+# A window with no command runs the user's interactive login shell.
+wid="$(tmux new-window -t "$S:" -c "$DIR" -P -F '#{window_id}')"
+name="${NAME:-sh:$(basename "$DIR")}"
+cs_apply_window "$S:$wid" "$name" 244     # grey, to distinguish from Claude instances
+tmux select-window -t "$S:$wid"           # follow the client to it
+echo "opened shell '$name' in $DIR"
