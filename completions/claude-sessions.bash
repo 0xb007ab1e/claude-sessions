@@ -3,13 +3,17 @@
 # && bashcompinit` first, then source this file.
 
 _cs_schemes='nato project random'
+_cs_models='opus sonnet haiku'
+_cs_efforts='low medium high xhigh max'
 
 _cj_complete() {
   local cur prev; cur="${COMP_WORDS[COMP_CWORD]}"; prev="${COMP_WORDS[COMP_CWORD-1]}"
   case "$prev" in
     -a) COMPREPLY=($(compgen -W "$_cs_schemes" -- "$cur")); return ;;
+    -M|--model)  COMPREPLY=($(compgen -W "$_cs_models" -- "$cur")); return ;;
+    -E|--effort) COMPREPLY=($(compgen -W "$_cs_efforts" -- "$cur")); return ;;
   esac
-  COMPREPLY=($(compgen -W "-a -n --auto --name" -- "$cur"))
+  COMPREPLY=($(compgen -W "-a -n -M -E --auto --name --model --effort" -- "$cur"))
 }
 complete -F _cj_complete cj
 
@@ -19,8 +23,10 @@ _claude_new_complete() {
     -m) COMPREPLY=($(compgen -W "new resume continue" -- "$cur")); return ;;
     -a) COMPREPLY=($(compgen -W "$_cs_schemes" -- "$cur")); return ;;
     -c) COMPREPLY=($(compgen -d -- "$cur")); return ;;
+    -M) COMPREPLY=($(compgen -W "$_cs_models" -- "$cur")); return ;;
+    -E) COMPREPLY=($(compgen -W "$_cs_efforts" -- "$cur")); return ;;
   esac
-  COMPREPLY=($(compgen -W "-m -c -n -a -i" -- "$cur"))
+  COMPREPLY=($(compgen -W "-m -c -n -a -i -M -E -D" -- "$cur"))
 }
 complete -F _claude_new_complete claude-new
 

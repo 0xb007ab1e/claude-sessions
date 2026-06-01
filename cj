@@ -2,11 +2,13 @@
 # cj — "claude-join": attach to the persistent, statically-named tmux session
 # and land in a running Claude instance.
 #
-# Usage: cj [-a [scheme]] [-n name] [-- claude-args…]
+# Usage: cj [-a [scheme]] [-n name] [-M model] [-E effort] [-- claude-args…]
 #   -a [scheme]  auto-name the instance (and color it) using scheme
 #                nato|project|random (default: config/$CLAUDE_NAME_SCHEME/nato);
 #                also default-on if config has `auto_name = true`
 #   -n name      give the instance an explicit name (implies naming)
+#   -M model     model for this instance: alias (sonnet|opus|haiku) or full id
+#   -E effort    effort for this instance: low | medium | high | xhigh | max
 #
 # Behaviour (from a normal shell):
 #   * ensure the session exists (the systemd user service normally starts it at
@@ -29,12 +31,14 @@ REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
 REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
 T=(tmux -f "$CONF")
 
-AUTONAME=0 SCHEME="" NAME=""
+AUTONAME=0 SCHEME="" NAME="" MODEL="" EFFORT=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -a|--auto) AUTONAME=1; shift
                case "${1:-}" in nato|project|random) SCHEME="$1"; shift ;; esac ;;
-    -n|--name) NAME="${2:-}"; AUTONAME=1; shift 2 ;;
+    -n|--name)   NAME="${2:-}"; AUTONAME=1; shift 2 ;;
+    -M|--model)  MODEL="${2:-}"; shift 2 ;;
+    -E|--effort) EFFORT="${2:-}"; shift 2 ;;
     --)        shift; break ;;
     -*)        echo "cj: unknown option $1" >&2; exit 1 ;;
     *)         break ;;
@@ -42,6 +46,19 @@ while [ $# -gt 0 ]; do
 done
 # Config can make auto-naming the default.
 [ "$AUTONAME" -eq 0 ] && [ "$(cs_config_get auto_name false)" = "true" ] && AUTONAME=1
+
+# Per-instance model/effort: flag, else configured default. Prepend to the args
+# passed through to the real Claude CLI (so they apply on every launch path).
+MODEL="${MODEL:-$(cs_config_get default_model "")}"
+EFFORT="${EFFORT:-$(cs_config_get default_effort "")}"
+if [ -n "$EFFORT" ] && ! printf '%s' "$EFFORT" | grep -qxE 'low|medium|high|xhigh|max'; then
+  echo "cj: ignoring invalid effort '$EFFORT' (use low|medium|high|xhigh|max)" >&2
+  EFFORT=""
+fi
+EXTRA=()
+[ -n "$MODEL" ]  && EXTRA+=(--model "$MODEL")
+[ -n "$EFFORT" ] && EXTRA+=(--effort "$EFFORT")
+set -- "${EXTRA[@]}" "$@"
 
 # Already inside tmux: just run the real CLI here (no nesting).
 if [ -n "${TMUX:-}" ]; then
@@ -69,7 +86,7 @@ if [ "$AUTONAME" -eq 1 ]; then
     name="${pair%%$'\t'*}"; color="${pair##*$'\t'}"
   fi
   cs_apply_window "$S:$wid" "$name" "$color"
-  cs_record_active "$name" "$color" "$wid" "$PWD"
+  cs_record_active "$name" "$color" "$wid" "$PWD" "" "$MODEL" "$EFFORT"
 fi
 
 "${T[@]}" select-window -t "$S:$wid"

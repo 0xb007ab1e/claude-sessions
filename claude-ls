@@ -25,13 +25,15 @@ if [ -f "$reg" ] && awk -F'\t' '$7=="active"{f=1} END{exit !f}' "$reg"; then
   awk -F'\t' -v now="$now" '
     function dur(s,  d){d=now-s; if(d<60)return d"s"; if(d<3600)return int(d/60)"m";
       if(d<86400)return int(d/3600)"h"int((d%3600)/60)"m"; return int(d/86400)"d"}
+    function mbadge(m,e){ if(m==""&&e=="")return ""; if(e=="")return " \033[2m{"m"}\033[0m";
+      if(m=="")return " \033[2m{@"e"}\033[0m"; return " \033[2m{"m" @"e"}\033[0m" }
     FNR==NR { S[$1]=$2; next }
     $7=="active"{ id=($9==""?"":" \033[2m["substr($9,1,8)"]\033[0m");
-      st=S[$4]; badge="";
-      if(st=="needs-approval") badge="  \033[1;33m⚠ needs approval\033[0m";
-      else if(st=="working")   badge="  \033[36m⚙ working\033[0m";
-      else if(st=="idle")      badge="  \033[2midle\033[0m";
-      printf "  \033[38;5;%sm●\033[0m %-16s %-28s up %s%s%s\n", $2,$1,$5,dur($6),id,badge }
+      st=S[$4]; sbadge="";
+      if(st=="needs-approval") sbadge="  \033[1;33m⚠ needs approval\033[0m";
+      else if(st=="working")   sbadge="  \033[36m⚙ working\033[0m";
+      else if(st=="idle")      sbadge="  \033[2midle\033[0m";
+      printf "  \033[38;5;%sm●\033[0m %-16s %-28s up %s%s%s%s\n", $2,$1,$5,dur($6),mbadge($10,$11),sbadge,id }
   ' "$smap" "$reg"
   rm -f "$smap"
 else
@@ -43,8 +45,10 @@ if [ -f "$reg" ] && awk -F'\t' '$7=="closed"{f=1} END{exit !f}' "$reg"; then
   awk -F'\t' -v now="$now" '
     function ago(s,  d){if(s=="")return "?"; d=now-s; if(d<3600)return int(d/60)"m ago";
       if(d<86400)return int(d/3600)"h ago"; return int(d/86400)"d ago"}
+    function badge(m,e){ if(m==""&&e=="")return ""; if(e=="")return " \033[2m{"m"}\033[0m";
+      if(m=="")return " \033[2m{@"e"}\033[0m"; return " \033[2m{"m" @"e"}\033[0m" }
     $7=="closed"{ id=($9==""?"":" \033[2m["substr($9,1,8)"]\033[0m");
-      printf "  \033[38;5;%sm○\033[0m %-16s %-30s closed %s%s\n", $2,$1,$5,ago($8),id }
+      printf "  \033[38;5;%sm○\033[0m %-16s %-30s closed %s%s%s\n", $2,$1,$5,ago($8),badge($10,$11),id }
   ' "$reg" | tail -20
 else
   printf '  (none)\n'

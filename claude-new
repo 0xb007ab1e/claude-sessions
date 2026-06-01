@@ -3,29 +3,41 @@
 # auto-named and colored per the configured scheme, and recorded in the registry.
 # Used by the tmux menu/keys and on the CLI.
 #
-#   claude-new [-m MODE] [-c DIR] [-n NAME] [-a SCHEME] [-i SESSION_ID] [-D]
+#   claude-new [-m MODE] [-c DIR] [-n NAME] [-a SCHEME] [-i SESSION_ID] [-M MODEL] [-E EFFORT] [-D]
 #     -m MODE    new (default) | resume (claude --resume) | continue (claude --continue)
 #     -c DIR     starting directory (default: current window's directory)
 #     -n NAME    explicit name (skip auto-naming)
 #     -a SCHEME  naming scheme override: nato | project | random
 #     -i ID      resume an exact conversation (claude --resume ID); implies -m resume
+#     -M MODEL   model for this instance: alias (sonnet|opus|haiku) or full id
+#     -E EFFORT  effort for this instance: low | medium | high | xhigh | max
 #     -D         prompt for the directory (editable, prefilled) before launching
 set -eo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
-MODE=new DIR="" NAME="" SCHEME="" SID="" ASKDIR=0
-while getopts ":m:c:n:a:i:Dh" o; do
+MODE=new DIR="" NAME="" SCHEME="" SID="" MODEL="" EFFORT="" ASKDIR=0
+while getopts ":m:c:n:a:i:M:E:Dh" o; do
   case "$o" in
     m) MODE="$OPTARG" ;;
     c) DIR="$OPTARG" ;;
     n) NAME="$OPTARG" ;;
     a) SCHEME="$OPTARG" ;;
     i) SID="$OPTARG"; MODE=resume ;;
+    M) MODEL="$OPTARG" ;;
+    E) EFFORT="$OPTARG" ;;
     D) ASKDIR=1 ;;
     h) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "claude-new: bad option" >&2; exit 1 ;;
   esac
 done
+
+# Fall back to configured defaults; validate effort against Claude's known set.
+MODEL="${MODEL:-$(cs_config_get default_model "")}"
+EFFORT="${EFFORT:-$(cs_config_get default_effort "")}"
+if [ -n "$EFFORT" ] && ! printf '%s' "$EFFORT" | grep -qxE 'low|medium|high|xhigh|max'; then
+  echo "claude-new: ignoring invalid effort '$EFFORT' (use low|medium|high|xhigh|max)" >&2
+  EFFORT=""
+fi
 # No explicit -c: inherit the current tmux window's directory (so a new instance
 # opens where you're working, not the server's home dir), falling back to $PWD.
 if [ -z "$DIR" ]; then
@@ -43,10 +55,14 @@ fi
 
 REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
 REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
+# Per-instance model/effort, appended to whichever launch mode is chosen.
+extra=""
+[ -n "$MODEL" ]  && extra+=" --model $MODEL"
+[ -n "$EFFORT" ] && extra+=" --effort $EFFORT"
 case "$MODE" in
-  resume)   cmd="$REAL_CLAUDE --resume${SID:+ $SID}" ;;   # exact session if -i given
-  continue) cmd="$REAL_CLAUDE --continue" ;;
-  *)        cmd="$REAL_CLAUDE" ;;
+  resume)   cmd="$REAL_CLAUDE --resume${SID:+ $SID}$extra" ;;   # exact session if -i given
+  continue) cmd="$REAL_CLAUDE --continue$extra" ;;
+  *)        cmd="$REAL_CLAUDE$extra" ;;
 esac
 
 S="$(cs_session)"
@@ -66,10 +82,11 @@ else
   name="${pair%%$'\t'*}"; color="${pair##*$'\t'}"
 fi
 cs_apply_window "$S:$wid" "$name" "$color"
-cs_record_active "$name" "$color" "$wid" "$DIR" "$SID"   # carry the resumed transcript id, if any
+cs_record_active "$name" "$color" "$wid" "$DIR" "$SID" "$MODEL" "$EFFORT"   # transcript + model/effort
 
 # Jump to the new instance. select-window sets the session's active window, so
 # the attached client (incl. when invoked from a tmux menu/key via run-shell,
 # where $TMUX isn't set) follows to it.
 tmux select-window -t "$S:$wid" 2>/dev/null || true
-echo "started instance '$name' ($MODE) in $DIR"
+me="$MODE"; [ -n "$MODEL$EFFORT" ] && me="$MODE${MODEL:+, $MODEL}${EFFORT:+ @$EFFORT}"
+echo "started instance '$name' ($me) in $DIR"

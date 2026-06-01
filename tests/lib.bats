@@ -83,3 +83,21 @@ setup() {
   run cut -f1 "$(cs_registry)"
   [[ "$output" == *c* ]] && [[ "$output" == *b* ]] && [[ "$output" != *a* ]]
 }
+
+@test "cs_record_active stores model and effort in columns 10/11" {
+  cs_record_active a 39 @1 /tmp/a "" opus high
+  run cs_field 10 "$(cat "$(cs_registry)")"
+  [ "$output" = opus ]
+  run cs_field 11 "$(cat "$(cs_registry)")"
+  [ "$output" = high ]
+}
+
+@test "cs_link_transcripts preserves model/effort columns" {
+  cs_record_active a 39 @1 /tmp/a "" opus high   # empty transcript (col 9)
+  cs_find_transcript() { echo "FAKEUUID"; }       # stub so a transcript is linked
+  cs_link_transcripts
+  row="$(cat "$(cs_registry)")"
+  [ "$(cs_field 9  "$row")" = FAKEUUID ]
+  [ "$(cs_field 10 "$row")" = opus ]
+  [ "$(cs_field 11 "$row")" = high ]
+}

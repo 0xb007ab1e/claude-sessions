@@ -15,6 +15,7 @@ cs_reconcile                                   # ensure the active row's transcr
 reg="$(cs_registry)"
 row="$(awk -F'\t' -v w="$wid" '$4==w && $7=="active"{print; exit}' "$reg")"
 name="$(cs_field 1 "$row")"; olddir="$(cs_field 5 "$row")"; transcript="$(cs_field 9 "$row")"
+model="$(cs_field 10 "$row")"; effort="$(cs_field 11 "$row")"
 name="${name:-claude}"; olddir="${olddir:-$PWD}"
 
 newdir="$(cs_pick_dir "$olddir")"; newdir="${newdir/#\~/$HOME}"
@@ -27,9 +28,10 @@ newdir="$(cs_pick_dir "$olddir")"; newdir="${newdir/#\~/$HOME}"
 # to closed via the window-unlinked hook.
 tmux kill-window -t "$S:$wid" 2>/dev/null || true
 cs_reconcile   # flip the old row to closed now (don't rely on the window-unlinked hook)
+me=(); [ -n "$model" ] && me+=(-M "$model"); [ -n "$effort" ] && me+=(-E "$effort")
 if [ -n "$transcript" ]; then
-  exec "$HERE/claude-new" -i "$transcript" -c "$newdir" -n "$name"   # resume same conversation
+  exec "$HERE/claude-new" -i "$transcript" -c "$newdir" -n "$name" "${me[@]}"   # resume same conversation
 else
   echo "claude-cd: couldn't link this conversation; opening a fresh instance in $newdir" >&2
-  exec "$HERE/claude-new" -c "$newdir" -n "$name"
+  exec "$HERE/claude-new" -c "$newdir" -n "$name" "${me[@]}"
 fi

@@ -10,6 +10,14 @@ name_scheme = nato
 # Auto-name every instance started via `cj` even without the -a flag.
 auto_name = false
 
+# Default model / effort for new instances (per-instance override on the CLI
+# with `cj -M MODEL -E EFFORT` or `claude-new -M MODEL -E EFFORT`, or via the
+# menu's "New (model)…" / prefix+M). Empty = Claude's own defaults.
+#   default_model  : alias (sonnet | opus | haiku) or full id (e.g. claude-opus-4-8)
+#   default_effort : low | medium | high | xhigh | max
+# default_model  =
+# default_effort =
+
 # Root directory the "New in dir…" / reopen picker searches for the fzf
 # typeahead. Default: $HOME. Point it at where your projects live (e.g. ~/src)
 # to keep the candidate list tight and relevant.

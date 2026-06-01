@@ -7,6 +7,7 @@
     prefix L    list instances — selectable (Enter: switch active / reopen closed)
     prefix N    new instance (in the current window's directory)
     prefix D    new instance in a directory you type ("New in dir…")
+    prefix M    new instance on a chosen model / effort ("New (model)…")
     prefix E    rename the current instance
     prefix G    change the current instance's directory
     prefix B    interactive shell in the current dir (for sudo, logins, etc.)
@@ -35,8 +36,9 @@
   From the shell (outside tmux)
     cj                  join the session (reuse/new instance)
     cj -a [scheme]      join + auto-name (nato | project | random)
+    cj -M MODEL -E EFFORT   join on a chosen model / effort
     claude-ls           list instances
-    claude-new [-m resume|continue] [-c DIR] [-n NAME]
+    claude-new [-m resume|continue] [-c DIR] [-n NAME] [-M MODEL] [-E EFFORT]
     claude-restore      reopen a closed instance
     claude-session ...  build a custom multi-window layout
 
