@@ -75,6 +75,7 @@ setup() {
 }
 
 @test "cs_prune keeps newest N closed rows" {
+  mkdir -p "$(cs_state_dir)"
   printf 'a\t39\t%s\t@1\t/a\t1\tclosed\t100\n' "$CLAUDE_TMUX_SESSION" >  "$(cs_registry)"
   printf 'b\t40\t%s\t@2\t/b\t1\tclosed\t200\n' "$CLAUDE_TMUX_SESSION" >> "$(cs_registry)"
   printf 'c\t41\t%s\t@3\t/c\t1\tclosed\t300\n' "$CLAUDE_TMUX_SESSION" >> "$(cs_registry)"
