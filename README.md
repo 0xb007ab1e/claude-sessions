@@ -103,7 +103,10 @@ list to your projects).
 
 The installer sources `completions/claude-sessions.bash` from `~/.bashrc`
 (flags + scheme values for `cj`/`claude-new`/`claude-ls`/`claude-session`).
-Unit tests for `lib.sh` are in `tests/lib.bats` — run `bats tests/`.
+Unit tests for `lib.sh` are in `tests/lib.bats` — run `bats tests/`. An
+end-to-end test of the fzf directory picker is in `tests/integration.sh`
+(`bash tests/integration.sh`) — it drives the picker via `tmux send-keys` on a
+private socket and skips cleanly without `tmux`/`fzf`.
 
 ### Attention notifications
 
