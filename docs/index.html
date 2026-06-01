@@ -129,9 +129,14 @@ interactive attaches). Require tmux ≥ 3.2.</p>
   <tr><td><code>prefix + O</code></td><td>reopen a closed instance</td></tr>
   <tr><td><code>prefix + X</code></td><td>stop the current instance (confirm)</td></tr>
   <tr><td><code>prefix + ?</code></td><td>cheat-sheet popup (overrides the default list-keys; use <code>prefix : list-keys</code> for all tmux keys)</td></tr>
+  <tr><td><code>F9</code></td><td><strong>no prefix</strong> — opens the menu even inside a running Claude TUI</td></tr>
+  <tr><td><code>Alt + ←/→</code></td><td><strong>no prefix</strong> — previous / next instance</td></tr>
 </table>
-<p>A <code>set-hook window-unlinked</code> runs <code>claude-ls --reconcile-only</code>
-so closures are recorded immediately.</p>
+<p>A full-screen Claude captures every key except the prefix (a bare key or
+<code>Ctrl-C</code> goes to Claude), so the root-table <code>F9</code> /
+<code>Alt+arrows</code> / status-bar mouse clicks are the friction-free way to
+drive tmux mid-session. A <code>set-hook window-unlinked</code> runs
+<code>claude-ls --reconcile-only</code> so closures are recorded immediately.</p>
 
 <h2>claude-session — functions</h2>
 <p>A bash script. Its shell functions are documented below.</p>

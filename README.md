@@ -68,6 +68,15 @@ instances flip to *closed* automatically when their window goes away.
 | `prefix + X` | stop the current instance (confirm) |
 | `prefix + ?` | cheat sheet |
 
+**No prefix needed** (works inside a running Claude, which otherwise captures every
+key — a bare key or `Ctrl-C` goes to Claude, not tmux):
+
+| Key | Action |
+|---|---|
+| `F9` | open the instance menu (one key) |
+| `Alt + ←/→` | previous / next instance |
+| mouse | tap the colored name in the status bar to switch |
+
 CLI equivalents: `claude-new [-m resume|continue]`, `claude-restore`, `claude-ls`.
 
 Manage the service:
