@@ -20,12 +20,17 @@ if ! command -v fzf >/dev/null 2>&1; then
 fi
 
 # fzf lines: status \t name \t window_id \t dir \t transcript \t <display>
+smap="$(mktemp)"
+for sf in "$(cs_status_dir)"/*; do [ -f "$sf" ] && printf '%s\t%s\n' "$(basename "$sf")" "$(cut -f1 "$sf")"; done > "$smap" 2>/dev/null
 lines="$(awk -F'\t' -v now="$now" '
   function ago(s,  d){d=now-s; if(d<60)return d"s"; if(d<3600)return int(d/60)"m";
     if(d<86400)return int(d/3600)"h"; return int(d/86400)"d"}
-  $7=="active"{ printf "%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8F %-16s %-28s up %s\n",     $7,$1,$4,$5,$9,$1,$5,ago($6) }
-  $7=="closed"{ printf "%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8B %-16s %-28s closed %s ago\n",$7,$1,$4,$5,$9,$1,$5,ago($8) }
-' "$reg")"
+  FNR==NR { S[$1]=$2; next }
+  $7=="active"{ st=S[$4]; b=(st=="needs-approval"?" ⚠":(st=="working"?" ⚙":""));
+    printf "%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8F %-16s %-26s up %s%s\n", $7,$1,$4,$5,$9,$1,$5,ago($6),b }
+  $7=="closed"{ printf "%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8B %-16s %-26s closed %s ago\n",$7,$1,$4,$5,$9,$1,$5,ago($8) }
+' "$smap" "$reg")"
+rm -f "$smap"
 [ -n "$lines" ] || { echo "no instances."; printf '\n[enter]'; read -r _; exit 0; }
 
 sel="$(printf '%s\n' "$lines" | fzf --delimiter=$'\t' --with-nth='6..' \

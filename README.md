@@ -125,6 +125,9 @@ status bar on a terminal bell. See `config.example`.
 > Hooks are merged into `~/.claude/settings.json` (idempotent, backup kept) and
 > apply to instances started after install.
 
+Each instance's status (**⚙ working** / **idle** / **⚠ needs approval**) shows in
+`claude-ls`, the `prefix L` picker, and a status-bar summary (`⚠N ⚙N`).
+
 ### Restore the whole session after a reboot
 
 The service snapshots active instances on stop (`claude-snapshot`) and, with

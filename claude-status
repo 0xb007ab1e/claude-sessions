@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# claude-status [bar] — summarize per-instance status (from the files claude-hook
+# writes) for the tmux status bar: how many instances need approval / are working.
+# Counts only LIVE windows. Prints a tmux-styled string (empty when nothing).
+set -eo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
+dir="$(cs_status_dir)"; [ -d "$dir" ] || exit 0
+live=" $(tmux list-windows -t "$(cs_session)" -F '#{window_id}' 2>/dev/null | tr '\n' ' ') "
+na=0; wk=0
+for f in "$dir"/*; do
+  [ -f "$f" ] || continue
+  wid="$(basename "$f")"
+  case "$live" in *" $wid "*) : ;; *) continue ;; esac      # skip stale (closed) windows
+  case "$(cut -f1 "$f" 2>/dev/null)" in
+    needs-approval) na=$((na + 1)) ;;
+    working)        wk=$((wk + 1)) ;;
+  esac
+done
+
+case "${1:-bar}" in
+  bar)
+    out=""
+    [ "$na" -gt 0 ] && out="#[fg=yellow,bold]⚠${na}#[default]"
+    [ "$wk" -gt 0 ] && out="${out:+$out }#[fg=cyan]⚙${wk}#[default]"
+    printf '%s' "$out" ;;
+  *) echo "usage: claude-status [bar]" >&2; exit 1 ;;
+esac
