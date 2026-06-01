@@ -1,0 +1,45 @@
+/* Shared look for the claude-sessions UI mockups (rendered to PNG via headless
+   Chrome). Approximates the tmux popups, fzf picker, claude-ls list, prompts,
+   and status bar. */
+:root{
+  --bg:#15171c; --fg:#cfd3dc; --dim:#7d8492; --box:#3a3f4b; --panel:#181b21;
+  --sel-bg:#2d4f67; --sel-fg:#fff; --key:#7fd1ff; --title:#ffd479;
+  --green:#8fd16a; --c-alpha:#5fafff; --c-bravo:#ff8700; --c-charlie:#00d75f;
+  --c-delta:#d75fff; --bar:#2b2f38; --barfg:#cfd3dc; --cyan:#56c7d6; --yellow:#e3c060;
+}
+html,body{margin:0;background:var(--bg);}
+body{ font:15px/1.55 "DejaVu Sans Mono",ui-monospace,monospace; color:var(--fg); padding:24px; }
+.wrap{ width:520px; }
+.narrow{ width:300px; }
+.popup{ border:1px solid var(--box); border-radius:4px; background:var(--panel);
+        box-shadow:0 6px 24px rgba(0,0,0,.45); overflow:hidden; }
+.title{ text-align:center; font-weight:700; color:var(--title);
+        padding:6px 14px; border-bottom:1px solid var(--box); letter-spacing:.5px; }
+.row{ display:flex; justify-content:space-between; gap:24px; padding:3px 14px; white-space:pre; }
+.row.sel{ background:var(--sel-bg); color:var(--sel-fg); }
+.k{ color:var(--key); font-weight:700; } .row.sel .k{ color:#fff; }
+.dim{ color:var(--dim); } .bold{font-weight:700;}
+.green{color:var(--green);} .cyan{color:var(--cyan);} .yellow{color:var(--yellow);}
+.alpha{color:var(--c-alpha);} .bravo{color:var(--c-bravo);}
+.charlie{color:var(--c-charlie);} .delta{color:var(--c-delta);}
+.pad{ padding:10px 14px; } .pad div{ padding:1px 0; }
+.h{ color:var(--fg); font-weight:700; }
+/* fzf-style picker */
+.fzf{ padding:8px 12px; }
+.fzf .prompt{ color:var(--green); } .fzf .prompt b{ color:#fff; font-weight:400; }
+.fzf .count{ color:var(--dim); margin:2px 0 6px; }
+.fzf .item{ padding:1px 0 1px 16px; }
+.fzf .item.cur{ background:var(--sel-bg); color:#fff; position:relative; }
+.fzf .item.cur::before{ content:"▌"; position:absolute; left:2px; color:var(--key); }
+/* prompt bar (command-prompt / confirm-before) */
+.prompt-bar{ background:var(--yellow); color:#1a1a1a; padding:4px 12px; font-weight:700; width:520px; box-sizing:border-box;}
+.cursor{ background:var(--fg); color:var(--bg); }
+/* tmux status bar */
+.statusbar{ display:flex; align-items:center; background:var(--bar); color:var(--barfg);
+            width:760px; box-sizing:border-box; padding:0; border-radius:3px; overflow:hidden; }
+.statusbar .seg{ padding:4px 10px; white-space:nowrap; }
+.statusbar .sess{ background:#3b82c4; color:#fff; font-weight:700; }
+.statusbar .win{ }
+.statusbar .cur{ background:#1f6fb2; color:#fff; font-weight:700; }
+.statusbar .right{ margin-left:auto; color:var(--dim); }
+.caption{ margin-top:10px; color:var(--dim); font-size:13px; }

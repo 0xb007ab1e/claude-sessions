@@ -29,7 +29,7 @@ Inside the session, everything is one keypress away. Prefix is **`Ctrl-b`**.
 
 The menu (`prefix C` / `F9` / tap the status bar):
 
-![claude-sessions instance menu](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/menu.png)
+![claude-sessions instance menu](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-menu.png)
 
 | Action | Key | Menu |
 |---|---|---|
@@ -51,6 +51,32 @@ bar) to open the menu, or use `prefix` + the letter. Switch instances with
 CLI equivalents: `claude-ls`, `claude-new [-m resume|continue] [-D]`,
 `claude-restore`, `claude-restore-all`, `claude-rename`, `claude-shell`,
 `claude-session` (multi-window layouts).
+
+## Screenshots — menu actions & status bar
+
+What each action looks like (rendered mockups). Base:
+`…/main/docs/screenshots/`.
+
+**List instances** (`prefix L` / menu `l`)
+![List instances](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-list.png)
+
+**New in dir…** (`prefix D` / menu `d`) — fzf typeahead over `search_dir`
+![New in dir](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-new-in-dir.png)
+
+**Reopen closed** (`prefix O` / menu `o`)
+![Reopen closed](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-reopen-closed.png)
+
+**Rename instance** (`prefix E` / menu `e`)
+![Rename instance](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-rename.png)
+
+**Stop current** (`prefix X` / menu `x`)
+![Stop current](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-stop.png)
+
+**Cheat sheet** (`prefix ?` / menu `?`)
+![Cheat sheet](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/instances-cheat-sheet.png)
+
+**Status bar** (the session list at the bottom of the screen)
+![Status bar](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/screenshots/status-bar.png)
 
 ## Phone setup (Tailscale + Termux)
 
