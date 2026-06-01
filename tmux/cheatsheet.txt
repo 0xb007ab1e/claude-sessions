@@ -16,7 +16,9 @@
     F9 then s   switch instance (built-in chooser; works in any terminal)
     F7 / F8     previous / next instance  (portable everywhere)
     Alt+Left/Right   previous / next instance  (if your terminal sends them)
-    mouse: tap the colored name in the status bar to switch
+    TAP the session name (far LEFT of the status bar)  ->  open the menu
+       (best on phones/Termux — no function keys needed)
+    mouse: tap a window name in the status bar to switch
     NOTE: a bare key or Ctrl-C goes to Claude, not tmux — use the prefix or F9
 
   tmux essentials

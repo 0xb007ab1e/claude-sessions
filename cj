@@ -58,7 +58,7 @@ if [ -n "$idle" ]; then
   wid="$("${T[@]}" display-message -t "$S:$idle" -p '#{window_id}')"
   "${T[@]}" send-keys -t "$S:$idle" "exec $REAL_CLAUDE $*" C-m
 else
-  wid="$("${T[@]}" new-window -t "$S" -P -F '#{window_id}' "exec $REAL_CLAUDE $*")"
+  wid="$("${T[@]}" new-window -t "$S:" -P -F '#{window_id}' "exec $REAL_CLAUDE $*")"
 fi
 
 if [ "$AUTONAME" -eq 1 ]; then

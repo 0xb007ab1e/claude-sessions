@@ -39,7 +39,9 @@ tmux -f "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/tmux.conf" \
   has-session -t "$S" 2>/dev/null || tmux new-session -d -s "$S"
 
 # Create the window and capture its id so we can track it across renames.
-wid="$(tmux new-window -t "$S" -c "$DIR" -P -F '#{window_id}' "exec $cmd")"
+# The trailing ':' targets the session and lets tmux pick the next free index
+# (a bare '-t S' tries base-index and fails with "index 1 in use").
+wid="$(tmux new-window -t "$S:" -c "$DIR" -P -F '#{window_id}' "exec $cmd")"
 
 # Name + color: explicit name, else auto per scheme.
 if [ -n "$NAME" ]; then

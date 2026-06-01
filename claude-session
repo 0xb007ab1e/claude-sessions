@@ -123,7 +123,7 @@ for entry in "$@"; do
     $tmux new-session -d -s "$SESSION" -n "$label" ${dir:+-c "$dir"}
     first=0; first_label="$label"
   else
-    $tmux new-window -t "$SESSION" -n "$label" ${dir:+-c "$dir"}
+    $tmux new-window -t "$SESSION:" -n "$label" ${dir:+-c "$dir"}
   fi
   # Sent as keys so the shell stays if claude exits.
   $tmux send-keys -t "${SESSION}:${label}" "$cmd" C-m
