@@ -104,14 +104,47 @@ cs_apply_window() {
 
 # Append an active row, keeping at most one active row per window id (a reused
 # window supersedes its previous active row). cs_record_active NAME COLOR WID CWD
+# Column 9 (transcript) starts empty and is filled later by cs_link_transcripts.
 cs_record_active() {
   local reg tmp; reg="$(cs_registry)"; mkdir -p "$(cs_state_dir)"
   if [ -f "$reg" ]; then
     tmp="$(mktemp)"
     awk -F'\t' -v wid="$3" '!($7=="active" && $4==wid)' "$reg" > "$tmp" && mv "$tmp" "$reg"
   fi
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$1" "$2" "$(cs_session)" "$3" "$4" "$(date +%s)" active "" >> "$reg"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$1" "$2" "$(cs_session)" "$3" "$4" "$(date +%s)" active "" "" >> "$reg"
+}
+
+# Claude's transcript directory for a cwd (non-alphanumerics → '-', matching
+# Claude Code's project-dir encoding). Honors $CLAUDE_CONFIG_DIR.
+cs_project_dir() {
+  printf '%s/projects/%s' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" \
+    "$(printf '%s' "$1" | sed 's#[^A-Za-z0-9]#-#g')"
+}
+
+# Best-effort: the transcript (session) id for an instance — the newest
+# *.jsonl in the cwd's project dir modified at/after the start time.
+# cs_find_transcript CWD STARTED_EPOCH  ->  uuid or empty
+cs_find_transcript() {
+  local d f; d="$(cs_project_dir "$1")"
+  [ -d "$d" ] || return 0
+  f="$(find "$d" -maxdepth 1 -name '*.jsonl' -newermt "@$(( ${2:-0} - 2 ))" \
+         -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)"
+  [ -n "$f" ] && basename "$f" .jsonl || true
+}
+
+# Fill the transcript id (column 9) for active rows that don't have one yet.
+cs_link_transcripts() {
+  local reg tmp name color sess wid cwd started status ended transcript
+  reg="$(cs_registry)"; [ -f "$reg" ] || return 0
+  tmp="$(mktemp)"
+  while IFS=$'\t' read -r name color sess wid cwd started status ended transcript; do
+    if [ "$status" = active ] && [ -z "$transcript" ]; then
+      transcript="$(cs_find_transcript "$cwd" "$started")"
+    fi
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$name" "$color" "$sess" "$wid" "$cwd" "$started" "$status" "$ended" "$transcript"
+  done < "$reg" > "$tmp" && mv "$tmp" "$reg"
 }
 
 # Mark active rows closed when their window no longer exists.
@@ -126,4 +159,5 @@ cs_reconcile() {
     $7=="active" && index(live, " " $4 " ")==0 { $7="closed"; $8=now }
     { print }
   ' "$reg" > "$tmp" && mv "$tmp" "$reg"
+  cs_link_transcripts   # capture transcript ids for still-active instances
 }

@@ -3,22 +3,24 @@
 # auto-named and colored per the configured scheme, and recorded in the registry.
 # Used by the tmux menu/keys and on the CLI.
 #
-#   claude-new [-m MODE] [-c DIR] [-n NAME] [-a SCHEME]
+#   claude-new [-m MODE] [-c DIR] [-n NAME] [-a SCHEME] [-i SESSION_ID]
 #     -m MODE    new (default) | resume (claude --resume) | continue (claude --continue)
 #     -c DIR     starting directory (default: current)
 #     -n NAME    explicit name (skip auto-naming)
 #     -a SCHEME  naming scheme override: nato | project | random
+#     -i ID      resume an exact conversation (claude --resume ID); implies -m resume
 set -eo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
-MODE=new DIR="" NAME="" SCHEME=""
-while getopts ":m:c:n:a:h" o; do
+MODE=new DIR="" NAME="" SCHEME="" SID=""
+while getopts ":m:c:n:a:i:h" o; do
   case "$o" in
     m) MODE="$OPTARG" ;;
     c) DIR="$OPTARG" ;;
     n) NAME="$OPTARG" ;;
     a) SCHEME="$OPTARG" ;;
-    h) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    i) SID="$OPTARG"; MODE=resume ;;
+    h) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "claude-new: bad option" >&2; exit 1 ;;
   esac
 done
@@ -27,7 +29,7 @@ DIR="${DIR:-$PWD}"; DIR="${DIR/#\~/$HOME}"
 REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
 REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
 case "$MODE" in
-  resume)   cmd="$REAL_CLAUDE --resume" ;;
+  resume)   cmd="$REAL_CLAUDE --resume${SID:+ $SID}" ;;   # exact session if -i given
   continue) cmd="$REAL_CLAUDE --continue" ;;
   *)        cmd="$REAL_CLAUDE" ;;
 esac

@@ -62,10 +62,13 @@ and the ANSI list output.</p>
 <p>The <strong>registry</strong> is a TSV at
 <code>$XDG_STATE_HOME/claude-sessions/registry.tsv</code> (default
 <code>~/.local/state/…</code>), one row per instance:
-<code>name · color · session · window_id · cwd · started · status · ended</code>.
+<code>name · color · session · window_id · cwd · started · status · ended · transcript</code>.
 A row flips to <code>closed</code> when its window disappears — detected on
 demand by <code>claude-ls</code> and promptly by the <code>window-unlinked</code>
-tmux hook. At most one <code>active</code> row exists per window id.</p>
+tmux hook. At most one <code>active</code> row exists per window id. The
+<code>transcript</code> column is the instance's Claude conversation (session)
+id, linked best-effort after launch, so a closed instance can be reopened on the
+<em>exact</em> conversation.</p>
 
 <h2>lib.sh — functions</h2>
 <p>Shared, sourced by every tool (never executed directly).</p>
@@ -95,21 +98,31 @@ rows — so allocation never collides.</p></div>
 row for the same window id (a reused window supersedes its old row).</p></div>
 <div class="sym"><h3 id="cs-reconcile"><code>cs_reconcile()</code></h3>
 <p>Mark <code>active</code> rows <code>closed</code> (stamping the end time) when
-their window no longer exists in the session.</p></div>
+their window no longer exists, then run <code>cs_link_transcripts</code>.</p></div>
+<div class="sym"><h3 id="cs-project"><code>cs_project_dir(cwd) · cs_find_transcript(cwd, since) · cs_link_transcripts()</code></h3>
+<p>Map a cwd to Claude's transcript directory (non-alphanumerics → <code>-</code>,
+honoring <code>$CLAUDE_CONFIG_DIR</code>); find the newest <code>*.jsonl</code>
+modified at/after an instance's start time (its session id); and fill the
+registry's <code>transcript</code> column for active rows that don't have one yet.
+Best-effort — if the id can't be determined, restore falls back to
+<code>--continue</code> in the directory.</p></div>
 
 <h2>Instance commands</h2>
 <div class="sym"><h3 id="cmd-ls"><code>claude-ls [--reconcile-only]</code></h3>
 <p>Reconcile, then print active and recently-closed instances with colored
 name dots, directory, and uptime/closed-ago. <code>--reconcile-only</code> just
 updates the registry (used by the tmux close hook).</p></div>
-<div class="sym"><h3 id="cmd-new"><code>claude-new [-m new|resume|continue] [-c DIR] [-n NAME] [-a SCHEME]</code></h3>
+<div class="sym"><h3 id="cmd-new"><code>claude-new [-m new|resume|continue] [-c DIR] [-n NAME] [-a SCHEME] [-i ID]</code></h3>
 <p>Open a new window in the session running Claude in the chosen mode, auto-named
 &amp; colored (or <code>-n NAME</code>), recorded, and selected if attached.
+<code>-i ID</code> resumes an <em>exact</em> conversation (<code>claude --resume ID</code>).
 Resolves the Claude binary via <code>$CJ_CLAUDE</code>/PATH.</p></div>
 <div class="sym"><h3 id="cmd-restore"><code>claude-restore</code></h3>
 <p>Reconcile, list closed instances (most-recent first, de-duped by name), let
-you pick one (fzf if present, else a numbered prompt), and reopen it via
-<code>claude-new -m continue</code> in its original directory.</p></div>
+you pick one (fzf if present, else a numbered prompt), and reopen it in its
+original directory — on the <strong>exact</strong> conversation via
+<code>claude-new -i &lt;transcript&gt;</code> when the id is known, otherwise
+<code>claude-new -m continue</code> (the directory's most recent).</p></div>
 <div class="sym"><h3 id="cmd-popup"><code>claude-popup {ls|help}</code></h3>
 <p>Runs <code>claude-ls</code> or prints the cheat sheet, then waits for Enter —
 so a tmux <code>display-popup</code> binding stays readable. Keeps complex
