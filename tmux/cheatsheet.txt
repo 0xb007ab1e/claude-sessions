@@ -2,13 +2,19 @@
   ═══════════════════════════════════════════════════════════════
   Prefix is Ctrl-b: press it, release, then the key.
 
-  Claude instances
+  Claude instances  (need the prefix: press Ctrl-b, release, then the key)
     prefix C    open the instance menu (all actions below)
     prefix L    list active + closed instances (names & colors)
     prefix N    new instance (auto-named)
     prefix R    resume a past conversation (picker)
     prefix O    reopen a closed instance (in its old directory)
     prefix X    stop the current instance (asks to confirm)
+
+  No prefix needed — works even inside a running Claude:
+    F9          open the instance menu (one key)
+    Alt+Left/Right   previous / next instance
+    mouse: tap the colored name in the status bar to switch
+    NOTE: a bare key or Ctrl-C goes to Claude, not tmux — use the prefix or F9
 
   tmux essentials
     prefix w    visual window list        prefix c   new (blank) window
