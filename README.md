@@ -95,7 +95,8 @@ When a Claude instance rings the terminal bell (it does on completion / when it
 needs input — enable the bell in Claude), its window is flagged **yellow** in the
 status bar and `claude-notify` fires a notification. Choose the backend in
 config (`notify = desktop | ntfy | pushover | none`); `ntfy`/`pushover` push to
-your **phone** (over Tailscale for self-hosted ntfy). See `config.example`.
+your **phone** (over Tailscale for self-hosted ntfy) at **high priority** with a
+🔔 bell tag. See `config.example`.
 
 ### Restore the whole session after a reboot
 

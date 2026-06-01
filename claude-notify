@@ -32,13 +32,14 @@ case "$backend" in
     topic="$(cs_config_get ntfy_topic '')"
     server="$(cs_config_get ntfy_server https://ntfy.sh)"
     if [ -n "$topic" ] && command -v curl >/dev/null 2>&1; then
-      curl -fsS -H "Title: $title" -d "$body" "$server/$topic" >/dev/null 2>&1 || true
+      curl -fsS -H "Title: $title" -H "Priority: high" -H "Tags: bell" \
+        -d "$body" "$server/$topic" >/dev/null 2>&1 || true
     fi ;;
   pushover)
     tok="$(cs_config_get pushover_token '')"; usr="$(cs_config_get pushover_user '')"
     if [ -n "$tok" ] && [ -n "$usr" ] && command -v curl >/dev/null 2>&1; then
       curl -fsS -F "token=$tok" -F "user=$usr" -F "title=$title" -F "message=$body" \
-        https://api.pushover.net/1/messages.json >/dev/null 2>&1 || true
+        -F "priority=1" https://api.pushover.net/1/messages.json >/dev/null 2>&1 || true
     fi ;;
   *) echo "claude-notify: unknown backend '$backend'" >&2 ;;
 esac

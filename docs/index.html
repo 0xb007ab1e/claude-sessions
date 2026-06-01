@@ -165,7 +165,10 @@ Claude). The bell also flags the window yellow in the status bar
 <code>desktop</code> (<code>notify-send</code>), <code>ntfy</code>
 (<code>$ntfy_server/$ntfy_topic</code> — pushes to your phone over Tailscale),
 <code>pushover</code> (<code>$pushover_token</code>/<code>$pushover_user</code>),
-or <code>none</code>. Missing tools/keys degrade to a safe no-op.</p></div>
+or <code>none</code>. Notifications are sent at <strong>high priority</strong>
+with a 🔔 <strong>bell tag</strong> (ntfy <code>Priority: high</code> /
+<code>Tags: bell</code>; Pushover <code>priority=1</code>). Missing tools/keys
+degrade to a safe no-op.</p></div>
 
 <h2>Key bindings &amp; cheat sheet (prefix is Ctrl-b)</h2>
 <p>Generated into <code>~/.config/claude-sessions/bindings.conf</code> from
