@@ -91,11 +91,13 @@ file; echoes <code>default</code> if absent/empty.</p></div>
 <div class="sym"><h3 id="cs-pickdir"><code>cs_pick_dir(default)</code></h3>
 <p>Prompt for a directory and echo the choice. With <code>fzf</code> installed:
 a live <strong>typeahead</strong> picker over recently-used dirs (registry) plus
-the tree under <code>$HOME</code> (streamed via <code>fd</code>/<code>find</code>,
-so matches appear as they're found); typing a path not in the list and pressing
-Enter uses what you typed. Without fzf: <code>read -e</code> readline editing
-with <strong>Tab</strong> filename completion, prefilled with <code>default</code>.
-Used by <code>claude-new -D</code> and <code>claude-restore</code>.</p></div>
+the tree under the configured <code>search_dir</code> (config; default
+<code>$HOME</code> — point it at e.g. <code>~/src</code> to keep the list tight),
+streamed via <code>fd</code>/<code>find</code> so matches appear as they're found;
+typing a path not in the list and pressing Enter uses what you typed. Without
+fzf: <code>read -e</code> readline editing with <strong>Tab</strong> filename
+completion, prefilled with <code>default</code>. Used by <code>claude-new -D</code>
+and <code>claude-restore</code>.</p></div>
 <div class="sym"><h3 id="cs-color"><code>cs_color_idx(i) · cs_color_hash(str)</code></h3>
 <p>Pick a palette color: by index (stable, wraps) or by hashing a string
 (stable per name).</p></div>

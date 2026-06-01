@@ -10,6 +10,11 @@ name_scheme = nato
 # Auto-name every instance started via `cj` even without the -a flag.
 auto_name = false
 
+# Root directory the "New in dir…" / reopen picker searches for the fzf
+# typeahead. Default: $HOME. Point it at where your projects live (e.g. ~/src)
+# to keep the candidate list tight and relevant.
+search_dir = ~
+
 # Attention notifications when an instance rings the bell (Claude finished /
 # needs input — enable the terminal bell in Claude for this to fire).
 #   notify = desktop | ntfy | pushover | none

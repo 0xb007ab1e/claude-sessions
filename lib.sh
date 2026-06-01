@@ -44,12 +44,14 @@ cs_scheme() {
 # Without fzf: readline editing with TAB filename completion (prefilled).
 # cs_pick_dir [default]
 cs_pick_dir() {
-  local def="${1:-$PWD}"
+  local def="${1:-$PWD}" root
+  root="$(cs_config_get search_dir "$HOME")"; root="${root/#\~/$HOME}"
+  [ -d "$root" ] || root="$HOME"
   if command -v fzf >/dev/null 2>&1; then
     local lister out sel q
-    if command -v fd >/dev/null 2>&1;     then lister='fd -td -d4 -H -E .git -E node_modules . "$HOME"'
-    elif command -v fdfind >/dev/null 2>&1; then lister='fdfind -td -d4 -H -E .git -E node_modules . "$HOME"'
-    else lister='find "$HOME" -maxdepth 4 -type d -not -path "*/.*" -not -path "*/node_modules/*"'; fi
+    if command -v fd >/dev/null 2>&1;     then lister='fd -td -d4 -H -E .git -E node_modules . "$root"'
+    elif command -v fdfind >/dev/null 2>&1; then lister='fdfind -td -d4 -H -E .git -E node_modules . "$root"'
+    else lister='find "$root" -maxdepth 4 -type d -not -path "*/.*" -not -path "*/node_modules/*"'; fi
     out="$( { printf '%s\n' "$def"
               [ -f "$(cs_registry)" ] && awk -F'\t' 'NF{print $5}' "$(cs_registry)"
               eval "$lister" 2>/dev/null

@@ -62,6 +62,10 @@ echo "wrote    $CSCONF/bindings.conf (tmux menu + keys)"
 case "$(tmux -V)" in *" 3."[2-9]*|*" "[4-9].*) : ;; *)
   echo "warning: tmux >= 3.2 recommended for popups (you have $(tmux -V))" ;;
 esac
+# Optional deps for the directory picker's typeahead (degrades to Tab completion).
+command -v fzf >/dev/null 2>&1 || echo "tip      install 'fzf' for directory typeahead (sudo apt install fzf)"
+command -v fd  >/dev/null 2>&1 || command -v fdfind >/dev/null 2>&1 \
+  || echo "tip      install 'fd-find' to speed up the directory search (sudo apt install fd-find)"
 
 # 3. systemd user service (boot autostart of the persistent session) ----------
 if command -v systemctl >/dev/null 2>&1; then

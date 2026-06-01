@@ -91,8 +91,10 @@ directory by default. To pick one, use **New in dir…** (`prefix + D`) or
 for the directory (prefilled with the saved one) so you can override it.
 
 The directory prompt has **Tab path-completion**, and upgrades to a live **fzf
-typeahead picker** (recent dirs + your `$HOME` tree) if `fzf` is installed
-(`sudo apt install fzf`; `fd` makes it faster) — handy on a phone.
+typeahead picker** if `fzf` is installed (`sudo apt install fzf fd-find`) — handy
+on a phone. The picker searches recently-used dirs plus the tree under
+**`search_dir`** in config (default `$HOME`; set it to e.g. `~/src` to scope the
+list to your projects).
 
 ### Tab-completion & tests
 
