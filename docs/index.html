@@ -41,6 +41,7 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-shell"><code>claude-shell</code></a></td><td>Open an interactive shell window (for commands Claude can't run), in the current dir.</td></tr>
   <tr><td><a href="../claude-cd"><code>claude-cd</code></a></td><td>Move the current instance to a chosen directory, relaunching it there (resume) + updating the registry.</td></tr>
   <tr><td><a href="../claude-hook"><code>claude-hook</code></a></td><td>Claude Code hook dispatcher: records per-instance status + notifies on approval prompts.</td></tr>
+  <tr><td><a href="../claude-status"><code>claude-status</code></a></td><td>Summarize instance status (⚠ needs-approval / ⚙ working) for the tmux status bar.</td></tr>
   <tr><td><a href="../completions/claude-sessions.bash"><code>completions/claude-sessions.bash</code></a></td><td>Bash completion (sourced from <code>~/.bashrc</code>).</td></tr>
   <tr><td><a href="../tests/lib.bats"><code>tests/lib.bats</code></a></td><td>Unit tests for <code>lib.sh</code> (run with <code>bats tests/</code>).</td></tr>
   <tr><td><a href="../tests/integration.sh"><code>tests/integration.sh</code></a></td><td>End-to-end tests: fzf picker (send-keys in a pane) + popup exec (display-popup); private socket; skips without tmux/fzf.</td></tr>
@@ -165,6 +166,13 @@ prompts via <a href="#cs-pickdir"><code>cs_pick_dir</code></a>), names it
 <code>sh:&lt;dir&gt;</code> in grey to stand apart from colored instances, and
 switches to it. Not recorded in the instance registry. Menu: "Shell here"
 (<code>prefix+B</code>).</p></div>
+<div class="sym"><h3 id="cmd-status"><code>claude-status [bar]</code></h3>
+<p>Summarize per-instance status (from <a href="#cmd-hook"><code>claude-hook</code></a>)
+for live windows: how many need approval / are working. <code>bar</code> prints a
+tmux-styled string (<code>⚠N</code> / <code>⚙N</code>, empty when nothing) used in
+<code>status-right</code>. <code>claude-ls</code> and the picker also show a
+per-instance badge (<code>⚠ needs approval</code> / <code>⚙ working</code> /
+<code>idle</code>).</p></div>
 <div class="sym"><h3 id="cmd-hook"><code>claude-hook EVENT</code></h3>
 <p>A Claude Code <strong>hook dispatcher</strong> that <code>install.sh</code> merges into
 <code>~/.claude/settings.json</code> for <code>SessionStart</code>,

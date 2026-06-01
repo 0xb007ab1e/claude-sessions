@@ -73,6 +73,10 @@ bind -n M-Right next-window
 bind -n F7      previous-window
 bind -n F8      next-window
 
+# Status-bar summary: ⚠N need approval / ⚙N working (from claude-hook status).
+# Overrides tmux.conf's status-right; refreshed every status-interval.
+set -g status-right '#(@BIN@/claude-status bar) #[fg=cyan]%H:%M #[fg=yellow]%d-%b'
+
 # Keep the active/closed registry fresh when a window closes.
 set-hook -g window-unlinked 'run-shell "@BIN@/claude-ls --reconcile-only"'
 
