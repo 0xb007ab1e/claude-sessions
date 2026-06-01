@@ -29,7 +29,7 @@ Inside the session, everything is one keypress away. Prefix is **`Ctrl-b`**.
 
 The menu (`prefix C` / `F9` / tap the status bar):
 
-![claude-sessions instance menu](docs/menu.png)
+![claude-sessions instance menu](https://raw.githubusercontent.com/0xb007ab1e/claude-sessions/main/docs/menu.png)
 
 | Action | Key | Menu |
 |---|---|---|
