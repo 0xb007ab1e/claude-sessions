@@ -40,6 +40,7 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-rename"><code>claude-rename</code></a></td><td>Rename an instance (window + registry).</td></tr>
   <tr><td><a href="../claude-shell"><code>claude-shell</code></a></td><td>Open an interactive shell window (for commands Claude can't run), in the current dir.</td></tr>
   <tr><td><a href="../claude-cd"><code>claude-cd</code></a></td><td>Move the current instance to a chosen directory, relaunching it there (resume) + updating the registry.</td></tr>
+  <tr><td><a href="../claude-hook"><code>claude-hook</code></a></td><td>Claude Code hook dispatcher: records per-instance status + notifies on approval prompts.</td></tr>
   <tr><td><a href="../completions/claude-sessions.bash"><code>completions/claude-sessions.bash</code></a></td><td>Bash completion (sourced from <code>~/.bashrc</code>).</td></tr>
   <tr><td><a href="../tests/lib.bats"><code>tests/lib.bats</code></a></td><td>Unit tests for <code>lib.sh</code> (run with <code>bats tests/</code>).</td></tr>
   <tr><td><a href="../tests/integration.sh"><code>tests/integration.sh</code></a></td><td>End-to-end tests: fzf picker (send-keys in a pane) + popup exec (display-popup); private socket; skips without tmux/fzf.</td></tr>
@@ -124,6 +125,12 @@ their window no longer exists, then run <code>cs_link_transcripts</code>.</p></d
 empty fields. (Plain <code>IFS=$'\t' read</code> collapses consecutive tabs, so it
 mis-parses rows with an empty field like an active row's blank <code>ended</code>;
 readers use this instead.)</p></div>
+<div class="sym"><h3 id="cs-status"><code>cs_set_status(wid, s) · cs_get_status(wid) · cs_clear_status(wid) · cs_status_dir()</code></h3>
+<p>Per-instance live status (a small file per window id under
+<code>$XDG_STATE_HOME/claude-sessions/status/</code>): <code>working</code> /
+<code>idle</code> (finished a turn, awaiting input) / <code>needs-approval</code>.
+Written by <a href="#cmd-hook"><code>claude-hook</code></a> from Claude Code's
+hooks; read by the list/status bar.</p></div>
 <div class="sym"><h3 id="cs-project"><code>cs_project_dir(cwd) · cs_find_transcript(cwd, since) · cs_link_transcripts()</code></h3>
 <p>Map a cwd to Claude's transcript directory (non-alphanumerics → <code>-</code>,
 honoring <code>$CLAUDE_CONFIG_DIR</code>); find the newest <code>*.jsonl</code>
@@ -158,6 +165,18 @@ prompts via <a href="#cs-pickdir"><code>cs_pick_dir</code></a>), names it
 <code>sh:&lt;dir&gt;</code> in grey to stand apart from colored instances, and
 switches to it. Not recorded in the instance registry. Menu: "Shell here"
 (<code>prefix+B</code>).</p></div>
+<div class="sym"><h3 id="cmd-hook"><code>claude-hook EVENT</code></h3>
+<p>A Claude Code <strong>hook dispatcher</strong> that <code>install.sh</code> merges into
+<code>~/.claude/settings.json</code> for <code>SessionStart</code>,
+<code>UserPromptSubmit</code>, <code>Stop</code>, <code>Notification</code>, and
+<code>SessionEnd</code>. It maps the firing instance to its tmux window via the
+inherited <code>$TMUX_PANE</code>, records the instance's status
+(<code>working</code>/<code>idle</code>/<code>needs-approval</code>), and fires
+<a href="#cmd-notify"><code>claude-notify</code></a> on a permission/approval
+prompt (and on finish if <code>notify_on_finish = true</code>). No-ops for Claude
+instances not running inside the session. The merge is idempotent and preserves
+your other hooks (backup at <code>settings.json.cs-bak</code>); hooks apply to
+instances started after install.</p></div>
 <div class="sym"><h3 id="cmd-cd"><code>claude-cd</code></h3>
 <p>Move the <strong>current</strong> instance to a different project directory
 (menu "Change dir" / <code>prefix G</code>). Picks a dir via

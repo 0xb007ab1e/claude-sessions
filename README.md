@@ -113,12 +113,17 @@ through a real `display-popup`, on a private socket; it skips cleanly without
 
 ### Attention notifications
 
-When a Claude instance rings the terminal bell (it does on completion / when it
-needs input — enable the bell in Claude), its window is flagged **yellow** in the
-status bar and `claude-notify` fires a notification. Choose the backend in
-config (`notify = desktop | ntfy | pushover | none`); `ntfy`/`pushover` push to
-your **phone** (over Tailscale for self-hosted ntfy) at **high priority** with a
-🔔 bell tag. See `config.example`.
+`install.sh` registers **Claude Code hooks** (`claude-hook`) that track each
+instance's status (working / idle / needs-approval) and fire `claude-notify`
+**precisely when an instance needs your approval** — no reliance on the terminal
+bell. Set `notify_on_finish = true` to also ping when an instance finishes a turn.
+Choose the backend in config (`notify = desktop | ntfy | pushover | none`);
+`ntfy`/`pushover` push to your **phone** (over Tailscale for self-hosted ntfy) at
+**high priority** with a 🔔 tag. The window is also flagged **yellow** in the
+status bar on a terminal bell. See `config.example`.
+
+> Hooks are merged into `~/.claude/settings.json` (idempotent, backup kept) and
+> apply to instances started after install.
 
 ### Restore the whole session after a reboot
 
@@ -167,6 +172,7 @@ rm -f ~/.config/systemd/user/claude-tmux.service ~/.config/claude-sessions/bindi
 rm -f ~/.local/share/applications/claude-join.desktop
 rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the real `claude`)
 # then remove the `source-file …/tmux.conf` line from ~/.tmux.conf
+# and the claude-hook entries from ~/.claude/settings.json (restore settings.json.cs-bak)
 ```
 
 ## Repo layout

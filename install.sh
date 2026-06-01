@@ -34,10 +34,49 @@ mkdir -p "$BIN" "$APPS" "$UNITDIR" "$CSCONF" "$STATE"
 # 1. CLI shortcuts on PATH ----------------------------------------------------
 for f in cj claude-session claude-ls claude-new claude-restore claude-popup \
          claude-notify claude-snapshot claude-restore-all claude-rename claude-shell \
-         claude-pick claude-cd; do
+         claude-pick claude-cd claude-hook; do
   ln -sf "$REPO/$f" "$BIN/$f"
   echo "linked   $BIN/$f"
 done
+
+# 1c. Claude Code hooks (per-instance status + precise notifications) ---------
+# Merge our hook entries into ~/.claude/settings.json (backup first; idempotent
+# — replaces any prior claude-hook entries; preserves your other hooks).
+csettings="$HOME/.claude/settings.json"
+mkdir -p "$HOME/.claude"; [ -f "$csettings" ] || echo '{}' > "$csettings"
+if command -v python3 >/dev/null 2>&1; then
+  cp "$csettings" "$csettings.cs-bak" 2>/dev/null || true
+  CS_HOOK="$BIN/claude-hook" python3 - "$csettings" <<'PY'
+import json, os, sys
+cfg = sys.argv[1]; hook = os.environ["CS_HOOK"]
+try: data = json.load(open(cfg))
+except Exception: data = {}
+if not isinstance(data, dict): data = {}
+hooks = data.setdefault("hooks", {})
+for ev in ("SessionStart","UserPromptSubmit","Stop","Notification","SessionEnd"):
+    lst = [e for e in hooks.get(ev, [])
+           if not any("claude-hook" in (h.get("command","")) for h in e.get("hooks", []))]
+    lst.append({"matcher":"*","hooks":[{"type":"command","command":f"{hook} {ev}","async":True,"timeout":10}]})
+    hooks[ev] = lst
+json.dump(data, open(cfg,"w"), indent=2); open(cfg,"a").write("\n")
+PY
+  echo "wrote    Claude hooks into $csettings (backup: $csettings.cs-bak)"
+elif command -v jq >/dev/null 2>&1; then
+  cp "$csettings" "$csettings.cs-bak" 2>/dev/null || true
+  tmp="$(mktemp)"
+  jq --arg c "$BIN/claude-hook" '
+    def ours($e): {matcher:"*", hooks:[{type:"command", command:($c+" "+$e), async:true, timeout:10}]};
+    .hooks //= {} |
+    reduce ("SessionStart","UserPromptSubmit","Stop","Notification","SessionEnd") as $e (.;
+      .hooks[$e] = [ (.hooks[$e] // [])[]
+                     | select(([.hooks[]?.command // ""] | map(contains("claude-hook")) | any) | not) ]
+                   + [ours($e)])
+  ' "$csettings" > "$tmp" && mv "$tmp" "$csettings"
+  echo "wrote    Claude hooks into $csettings (backup: $csettings.cs-bak)"
+else
+  echo "skip     Claude hooks (need python3 or jq) — add '$BIN/claude-hook <Event>' hooks to $csettings manually"
+fi
+echo "note     hooks apply to Claude instances started after install (settings load at launch)"
 
 # 1b. bash completion (sourced from ~/.bashrc, idempotent) --------------------
 cline="[ -f $REPO/completions/claude-sessions.bash ] && . $REPO/completions/claude-sessions.bash"

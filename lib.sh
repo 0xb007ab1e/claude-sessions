@@ -192,6 +192,15 @@ cs_link_transcripts() {
 # row. cs_field N "row"
 cs_field() { cut -f"$1" <<<"$2"; }
 
+# --- per-instance live status (written by claude-hook, read by claude-ls/bar) -
+# A small file per window id holding "<status>\t<epoch>"; statuses:
+#   working | idle | needs-approval   (idle = finished a turn, awaiting input)
+cs_status_dir()   { echo "$(cs_state_dir)/status"; }
+_cs_status_file() { echo "$(cs_status_dir)/$(printf '%s' "$1" | tr -c 'A-Za-z0-9@_-' '_')"; }
+cs_set_status()   { mkdir -p "$(cs_status_dir)"; printf '%s\t%s\n' "$2" "$(date +%s)" > "$(_cs_status_file "$1")"; }
+cs_get_status()   { local f; f="$(_cs_status_file "$1")"; [ -f "$f" ] && cut -f1 "$f" || true; }
+cs_clear_status() { rm -f "$(_cs_status_file "$1")" 2>/dev/null || true; }
+
 # Mark active rows closed when their window no longer exists.
 cs_reconcile() {
   local reg s live now tmp

@@ -15,8 +15,9 @@ auto_name = false
 # to keep the candidate list tight and relevant.
 search_dir = ~
 
-# Attention notifications when an instance rings the bell (Claude finished /
-# needs input — enable the terminal bell in Claude for this to fire).
+# Attention notifications when an instance needs you (via the Claude Code hooks
+# installed by install.sh — fires on a permission/approval prompt; also the tmux
+# terminal-bell path).
 #   notify = desktop | ntfy | pushover | none
 notify = desktop
 # For phone push over Tailscale via ntfy (https://ntfy.sh or self-hosted):
@@ -27,6 +28,9 @@ notify = desktop
 # notify         = pushover
 # pushover_token = <app token>
 # pushover_user  = <user key>
+# With the Claude Code hooks installed (install.sh), notifications fire precisely
+# when an instance needs approval. Also ping when an instance *finishes* a turn:
+notify_on_finish = false
 
 # Reopen the previous session's instances automatically at boot (the systemd
 # service snapshots active instances on stop and reopens them on start).
