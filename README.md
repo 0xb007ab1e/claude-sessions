@@ -62,6 +62,7 @@ instances flip to *closed* automatically when their window goes away.
 |---|---|
 | `prefix + C` | **menu** of all actions below |
 | `prefix + L` | list instances — selectable picker (Enter: switch active / reopen closed) |
+| `prefix + U` | usage / cost per instance (`claude-cost`) |
 | `prefix + N` | new instance (in the current window's directory) |
 | `prefix + D` | new instance in a directory you type ("New in dir…") |
 | `prefix + E` | rename the current instance |

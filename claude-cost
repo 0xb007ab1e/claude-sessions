@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# claude-cost — token usage + estimated cost per active instance (and a session
+# total), parsed from each instance's Claude transcript (*.jsonl). Cost is a
+# LIST-PRICE ESTIMATE (per-model rates in the script); on a subscription your
+# actual billing differs — the token counts are the ground truth.
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+command -v python3 >/dev/null 2>&1 || { echo "claude-cost: needs python3" >&2; exit 1; }
+
+cs_reconcile
+reg="$(cs_registry)"; [ -f "$reg" ] || { echo "no instances yet."; exit 0; }
+
+# Collect "name <TAB> transcript-file" for active instances.
+pairs="$(mktemp)"
+while IFS= read -r row; do
+  [ "$(cs_field 7 "$row")" = active ] || continue
+  name="$(cs_field 1 "$row")"; cwd="$(cs_field 5 "$row")"; tid="$(cs_field 9 "$row")"
+  pdir="$(cs_project_dir "$cwd")"
+  if [ -n "$tid" ] && [ -f "$pdir/$tid.jsonl" ]; then file="$pdir/$tid.jsonl"
+  else file="$(find "$pdir" -maxdepth 1 -name '*.jsonl' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)"; fi
+  [ -n "$file" ] && [ -f "$file" ] && printf '%s\t%s\n' "$name" "$file" >> "$pairs"
+done < "$reg"
+
+python3 - "$pairs" <<'PY'
+import json, sys
+
+# Per 1M tokens, USD — Anthropic list price (approximate; edit to taste).
+PRICES = {
+    "opus":   {"in": 15.0, "out": 75.0, "cw": 18.75, "cr": 1.50},
+    "sonnet": {"in":  3.0, "out": 15.0, "cw":  3.75, "cr": 0.30},
+    "haiku":  {"in":  0.80,"out":  4.0, "cw":  1.00, "cr": 0.08},
+}
+def fam(m):
+    m = (m or "").lower()
+    return "opus" if "opus" in m else "haiku" if "haiku" in m else "sonnet"
+def cost(fa, u):
+    p = PRICES[fa]
+    return (u["in"]*p["in"] + u["out"]*p["out"] + u["cw"]*p["cw"] + u["cr"]*p["cr"]) / 1e6
+def human(n):
+    return f"{n/1e6:.1f}M" if n >= 1e6 else f"{n/1e3:.0f}K" if n >= 1e3 else str(int(n))
+
+def scan(path):
+    u = {"in":0,"out":0,"cw":0,"cr":0}; c = 0.0
+    try: fh = open(path, encoding="utf-8", errors="ignore")
+    except OSError: return u, c
+    with fh:
+        for line in fh:
+            try: o = json.loads(line)
+            except Exception: continue
+            msg = o.get("message", o) if isinstance(o, dict) else {}
+            us = (msg or {}).get("usage") or o.get("usage")
+            if not isinstance(us, dict): continue
+            d = {"in": us.get("input_tokens",0), "out": us.get("output_tokens",0),
+                 "cw": us.get("cache_creation_input_tokens",0), "cr": us.get("cache_read_input_tokens",0)}
+            for k in u: u[k] += d[k]
+            c += cost(fam((msg or {}).get("model") or o.get("model")), d)
+    return u, c
+
+rows = [l.rstrip("\n").split("\t",1) for l in open(sys.argv[1]) if l.strip()]
+print("\033[1mclaude usage / cost\033[0m  (cost = list-price estimate)\n")
+print(f"  {'instance':<16} {'in':>7} {'out':>7} {'cache rd':>9} {'cache wr':>9}  {'~cost':>8}")
+tot = {"in":0,"out":0,"cw":0,"cr":0}; tc = 0.0
+for name, path in rows:
+    u, c = scan(path)
+    for k in tot: tot[k] += u[k]
+    tc += c
+    print(f"  \033[1m{name:<16}\033[0m {human(u['in']):>7} {human(u['out']):>7} "
+          f"{human(u['cr']):>9} {human(u['cw']):>9}  {'$'+format(c,'.2f'):>8}")
+if not rows: print("  (no active instances)")
+else:
+    print(f"  {'-'*60}")
+    print(f"  {'total':<16} {human(tot['in']):>7} {human(tot['out']):>7} "
+          f"{human(tot['cr']):>9} {human(tot['cw']):>9}  \033[1m{'$'+format(tc,'.2f'):>8}\033[0m")
+PY
+rm -f "$pairs"
