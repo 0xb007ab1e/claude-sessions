@@ -9,3 +9,7 @@ name_scheme = nato
 
 # Auto-name every instance started via `cj` even without the -a flag.
 auto_name = false
+
+# Reopen the previous session's instances automatically at boot (the systemd
+# service snapshots active instances on stop and reopens them on start).
+restore_on_boot = false

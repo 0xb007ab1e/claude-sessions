@@ -33,6 +33,8 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-new"><code>claude-new</code></a></td><td>Open a new named/colored instance (new / resume / continue).</td></tr>
   <tr><td><a href="../claude-restore"><code>claude-restore</code></a></td><td>Reopen a closed instance from the registry in its old directory.</td></tr>
   <tr><td><a href="../claude-popup"><code>claude-popup</code></a></td><td>Run a view (ls/help) inside a tmux popup, pausing for a key.</td></tr>
+  <tr><td><a href="../claude-snapshot"><code>claude-snapshot</code></a></td><td>Save active instances (name + dir) for restore after reboot.</td></tr>
+  <tr><td><a href="../claude-restore-all"><code>claude-restore-all</code></a></td><td>Reopen the last session's instances (boot hook or manual).</td></tr>
   <tr><td><a href="../claude-session"><code>claude-session</code></a></td><td>General launcher: build a named session, one Claude per window (resume modes, <code>-a</code>).</td></tr>
   <tr><td><a href="../lib.sh"><code>lib.sh</code></a></td><td>Shared helpers: config, naming schemes, color palette, the instance registry.</td></tr>
   <tr><td><a href="../config.example"><code>config.example</code></a></td><td>Default config (<code>name_scheme</code>, <code>auto_name</code>).</td></tr>
@@ -110,6 +112,19 @@ Resolves the Claude binary via <code>$CJ_CLAUDE</code>/PATH.</p></div>
 <p>Reconcile, list closed instances (most-recent first, de-duped by name), let
 you pick one (fzf if present, else a numbered prompt), and reopen it via
 <code>claude-new -m continue</code> in its original directory.</p></div>
+<div class="sym"><h3 id="cmd-snapshot"><code>claude-snapshot</code></h3>
+<p>Write the currently-active instances (name + directory) to
+<code>$XDG_STATE_HOME/claude-sessions/last-session.tsv</code>. Run automatically
+by the service's <code>ExecStop</code> before the session is killed; also usable
+manually.</p></div>
+<div class="sym"><h3 id="cmd-restore-all"><code>claude-restore-all [--if-enabled]</code></h3>
+<p>Reopen every instance from the last snapshot, each via
+<code>claude-new -m continue</code> in its directory. Run by the service's
+<code>ExecStartPost</code> at boot; <code>--if-enabled</code> makes it a no-op
+unless config has <code>restore_on_boot = true</code> (so boot-restore is
+opt-in). Also bound to the menu's "Restore last session" (key <code>a</code>).</p>
+<p><strong>Note:</strong> the snapshot is taken on graceful service stop; a hard
+power-loss reboot reuses the previous snapshot (or none).</p></div>
 <div class="sym"><h3 id="cmd-popup"><code>claude-popup {ls|help}</code></h3>
 <p>Runs <code>claude-ls</code> or prints the cheat sheet, then waits for Enter —
 so a tmux <code>display-popup</code> binding stays readable. Keeps complex

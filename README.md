@@ -81,6 +81,14 @@ key — a bare key or `Ctrl-C` goes to Claude, not tmux):
 
 CLI equivalents: `claude-new [-m resume|continue]`, `claude-restore`, `claude-ls`.
 
+### Restore the whole session after a reboot
+
+The service snapshots active instances on stop (`claude-snapshot`) and, with
+`restore_on_boot = true` in config, reopens them at boot (`claude-restore-all`).
+Run it manually anytime (`claude-restore-all`) or from the menu ("Restore last
+session"). Snapshots are taken on graceful stop; a hard power-loss reboot reuses
+the previous snapshot.
+
 Manage the service:
 
 ```bash
