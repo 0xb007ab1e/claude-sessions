@@ -20,7 +20,8 @@ if [ -f "$reg" ] && awk -F'\t' '$7=="active"{f=1} END{exit !f}' "$reg"; then
   awk -F'\t' -v now="$now" '
     function dur(s,  d){d=now-s; if(d<60)return d"s"; if(d<3600)return int(d/60)"m";
       if(d<86400)return int(d/3600)"h"int((d%3600)/60)"m"; return int(d/86400)"d"}
-    $7=="active"{ printf "  \033[38;5;%sm●\033[0m %-16s %-30s up %s\n", $2,$1,$5,dur($6) }
+    $7=="active"{ id=($9==""?"":" \033[2m["substr($9,1,8)"]\033[0m");
+      printf "  \033[38;5;%sm●\033[0m %-16s %-30s up %s%s\n", $2,$1,$5,dur($6),id }
   ' "$reg"
 else
   printf '  (none)\n'
@@ -31,7 +32,8 @@ if [ -f "$reg" ] && awk -F'\t' '$7=="closed"{f=1} END{exit !f}' "$reg"; then
   awk -F'\t' -v now="$now" '
     function ago(s,  d){if(s=="")return "?"; d=now-s; if(d<3600)return int(d/60)"m ago";
       if(d<86400)return int(d/3600)"h ago"; return int(d/86400)"d ago"}
-    $7=="closed"{ printf "  \033[38;5;%sm○\033[0m %-16s %-30s closed %s\n", $2,$1,$5,ago($8) }
+    $7=="closed"{ id=($9==""?"":" \033[2m["substr($9,1,8)"]\033[0m");
+      printf "  \033[38;5;%sm○\033[0m %-16s %-30s closed %s%s\n", $2,$1,$5,ago($8),id }
   ' "$reg" | tail -20
 else
   printf '  (none)\n'

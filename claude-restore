@@ -11,9 +11,9 @@ cs_reconcile
 reg="$(cs_registry)"
 [ -f "$reg" ] || { echo "no registry yet — nothing to restore."; exit 0; }
 
-# Most recent closed instances first (de-dup by name, keep latest close).
-mapfile -t rows < <(awk -F'\t' '$7=="closed"{print $8"\t"$1"\t"$5}' "$reg" \
-                    | sort -rn | awk -F'\t' '!seen[$2]++{print $2"\t"$3}')
+# Most recent closed instances first (de-dup by name). Each row: name<TAB>cwd<TAB>transcript
+mapfile -t rows < <(awk -F'\t' '$7=="closed"{print $8"\t"$1"\t"$5"\t"$9}' "$reg" \
+                    | sort -rn | awk -F'\t' '!seen[$2]++{print $2"\t"$3"\t"$4}')
 [ "${#rows[@]}" -gt 0 ] || { echo "no closed instances to reopen."; exit 0; }
 
 choice=""
@@ -24,14 +24,23 @@ if command -v fzf >/dev/null 2>&1; then
   choice="${choice%% *}"
 else
   echo "closed instances — pick one to reopen:"
-  i=1; for r in "${rows[@]}"; do printf "  %2d) %-18s %s\n" "$i" "${r%%$'\t'*}" "${r#*$'\t'}"; i=$((i+1)); done
+  i=1; for r in "${rows[@]}"; do
+    IFS=$'\t' read -r rn rc _ <<<"$r"; printf "  %2d) %-18s %s\n" "$i" "$rn" "$rc"; i=$((i+1))
+  done
   printf "number (Enter to cancel): "; read -r sel
   [ -n "${sel:-}" ] || { echo "cancelled."; exit 0; }
   choice="$(printf '%s\n' "${rows[@]}" | sed -n "${sel}p" | cut -f1)"
 fi
 [ -n "$choice" ] || { echo "cancelled."; exit 0; }
 
-dir="$(printf '%s\n' "${rows[@]}" | awk -F'\t' -v n="$choice" '$1==n{print $2; exit}')"
-echo "reopening '$choice' in ${dir:-$HOME} ..."
-# Reuse the same name if it's free again; resume that dir's conversation.
-exec "$HERE/claude-new" -m continue -c "${dir:-$HOME}" -n "$choice"
+# Pull the dir + transcript for the chosen name.
+sel_row="$(printf '%s\n' "${rows[@]}" | awk -F'\t' -v n="$choice" '$1==n{print; exit}')"
+IFS=$'\t' read -r _ dir transcript <<<"$sel_row"
+dir="${dir:-$HOME}"
+if [ -n "$transcript" ]; then
+  echo "reopening '$choice' in $dir (exact conversation $transcript) ..."
+  exec "$HERE/claude-new" -i "$transcript" -c "$dir" -n "$choice"
+else
+  echo "reopening '$choice' in $dir (most recent conversation there) ..."
+  exec "$HERE/claude-new" -m continue -c "$dir" -n "$choice"
+fi
