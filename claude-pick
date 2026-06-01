@@ -22,12 +22,14 @@ fi
 # fzf lines: status \t name \t window_id \t dir \t transcript \t model \t effort \t <display>
 smap="$(mktemp)"
 for sf in "$(cs_status_dir)"/*; do [ -f "$sf" ] && printf '%s\t%s\n' "$(basename "$sf")" "$(cut -f1 "$sf")"; done > "$smap" 2>/dev/null
-lines="$(awk -F'\t' -v now="$now" '
+lines="$(awk -F'\t' -v now="$now" -v smapf="$smap" '
   function ago(s,  d){d=now-s; if(d<60)return d"s"; if(d<3600)return int(d/60)"m";
     if(d<86400)return int(d/3600)"h"; return int(d/86400)"d"}
   function badge(m,e){ if(m==""&&e=="")return ""; if(e=="")return " {"m"}";
     if(m=="")return " {@"e"}"; return " {"m" @"e"}" }
-  FNR==NR { S[$1]=$2; next }
+  # Match the status map by FILENAME (not FNR==NR): an empty map file would
+  # otherwise make FNR==NR consume the first registry row.
+  FILENAME==smapf { S[$1]=$2; next }
   $7=="active"{ st=S[$4]; b=(st=="needs-approval"?" ⚠":(st=="working"?" ⚙":""));
     printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8F %-16s %-26s up %s%s%s\n", $7,$1,$4,$5,$9,$10,$11,$1,$5,ago($6),badge($10,$11),b }
   $7=="closed"{ printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8B %-16s %-26s closed %s ago%s\n",$7,$1,$4,$5,$9,$10,$11,$1,$5,ago($8),badge($10,$11) }
