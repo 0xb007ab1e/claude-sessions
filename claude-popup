@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# claude-popup — run a claude-sessions view inside a tmux popup and pause for a
+# keypress so the output stays visible. Keeps complex quoting out of the tmux
+# key bindings. Usage: claude-popup {ls|help}
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+case "${1:-ls}" in
+  ls)   "$HERE/claude-ls" ;;
+  help) cat "$HERE/tmux/cheatsheet.txt" ;;
+  *)    echo "claude-popup: unknown view '$1' (use ls|help)" >&2 ;;
+esac
+printf '\n\033[2m[press Enter to close]\033[0m '
+read -r _ || true

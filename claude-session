@@ -17,6 +17,7 @@
 #
 # Options:
 #   -s NAME   session name (default: $CLAUDE_TMUX_SESSION or "claude")
+#   -a        color + register each window in the instance list (names = labels)
 #   -g        create a GROUPED attach view (independent size) of an existing
 #             session — use from a second client (e.g. phone) so it doesn't
 #             resize the other client's display
@@ -30,22 +31,26 @@
 #   claude-session -s review pr1 pr2
 #   ssh <host> -t 'claude-session -g'        # grouped attach from another machine
 
-set -euo pipefail
+set -eo pipefail
 
 # Resolve the bundled config even when invoked via a symlink on PATH.
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
-CONF="$(cd "$(dirname "$SELF")" && pwd)/tmux.conf"
+HERE="$(cd "$(dirname "$SELF")" && pwd)"
+CONF="$HERE/tmux.conf"
+source "$HERE/lib.sh"
 SESSION="${CLAUDE_TMUX_SESSION:-claude}"
 GROUPED=0
 ATTACH=1
+AUTONAME=0
 
 # Print the contiguous comment header (after the shebang) as help.
 usage() { awk 'NR>1 && /^#/{sub(/^# ?/,""); print; next} NR>1{exit}' "$SELF"; exit "${1:-0}"; }
 
-while getopts ":s:gnh" opt; do
+while getopts ":s:ganh" opt; do
   case "$opt" in
     s) SESSION="$OPTARG" ;;
     g) GROUPED=1 ;;
+    a) AUTONAME=1 ;;
     n) ATTACH=0 ;;
     h) usage 0 ;;
     \?) echo "unknown option: -$OPTARG" >&2; usage 1 ;;
@@ -53,6 +58,7 @@ while getopts ":s:gnh" opt; do
   esac
 done
 shift $((OPTIND - 1))
+export CLAUDE_TMUX_SESSION="$SESSION"   # so lib.sh registry uses this session
 
 # Default window set when none are given.
 [ "$#" -eq 0 ] && set -- main
@@ -107,6 +113,7 @@ fi
 # Build the session: first window seeds it, the rest are added.
 first=1
 first_label=""
+cidx=0
 for entry in "$@"; do
   IFS=: read -r label dir mode <<<"$entry"
   [ -n "$dir" ] && dir="${dir/#\~/$HOME}"   # expand a leading ~
@@ -120,6 +127,14 @@ for entry in "$@"; do
   fi
   # Sent as keys so the shell stays if claude exits.
   $tmux send-keys -t "${SESSION}:${label}" "$cmd" C-m
+
+  if [ "$AUTONAME" -eq 1 ]; then
+    wid="$($tmux display-message -t "${SESSION}:${label}" -p '#{window_id}')"
+    color="$(cs_color_idx "$cidx")"
+    cs_apply_window "${SESSION}:${wid}" "$label" "$color"
+    cs_record_active "$label" "$color" "$wid" "${dir:-$PWD}"
+    cidx=$((cidx+1))
+  fi
 done
 
 # Select by name, not index — correct whether base-index is 0 or 1.

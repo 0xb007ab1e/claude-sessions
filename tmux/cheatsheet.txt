@@ -1,0 +1,29 @@
+  claude-sessions — quick reference
+  ═══════════════════════════════════════════════════════════════
+  Prefix is Ctrl-b: press it, release, then the key.
+
+  Claude instances
+    prefix C    open the instance menu (all actions below)
+    prefix L    list active + closed instances (names & colors)
+    prefix N    new instance (auto-named)
+    prefix R    resume a past conversation (picker)
+    prefix O    reopen a closed instance (in its old directory)
+    prefix X    stop the current instance (asks to confirm)
+
+  tmux essentials
+    prefix w    visual window list        prefix c   new (blank) window
+    prefix n/p  next / previous window     prefix 1-9 jump to window N
+    prefix d    detach (leaves it running) prefix ,   rename window
+    prefix [    scroll / copy mode (q to quit)
+    mouse is ON — tap the status bar to switch windows
+    prefix :    command prompt   (type: list-keys  for ALL tmux keys)
+
+  From the shell (outside tmux)
+    cj                  join the session (reuse/new instance)
+    cj -a [scheme]      join + auto-name (nato | project | random)
+    claude-ls           list instances
+    claude-new [-m resume|continue] [-c DIR] [-n NAME]
+    claude-restore      reopen a closed instance
+    claude-session ...  build a custom multi-window layout
+
+  Naming convention: ~/.config/claude-sessions/config  (name_scheme = …)

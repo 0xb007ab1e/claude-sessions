@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# claude-new — open a new Claude instance (window) in the persistent session,
+# auto-named and colored per the configured scheme, and recorded in the registry.
+# Used by the tmux menu/keys and on the CLI.
+#
+#   claude-new [-m MODE] [-c DIR] [-n NAME] [-a SCHEME]
+#     -m MODE    new (default) | resume (claude --resume) | continue (claude --continue)
+#     -c DIR     starting directory (default: current)
+#     -n NAME    explicit name (skip auto-naming)
+#     -a SCHEME  naming scheme override: nato | project | random
+set -eo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
+MODE=new DIR="" NAME="" SCHEME=""
+while getopts ":m:c:n:a:h" o; do
+  case "$o" in
+    m) MODE="$OPTARG" ;;
+    c) DIR="$OPTARG" ;;
+    n) NAME="$OPTARG" ;;
+    a) SCHEME="$OPTARG" ;;
+    h) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "claude-new: bad option" >&2; exit 1 ;;
+  esac
+done
+DIR="${DIR:-$PWD}"; DIR="${DIR/#\~/$HOME}"
+
+REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
+REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
+case "$MODE" in
+  resume)   cmd="$REAL_CLAUDE --resume" ;;
+  continue) cmd="$REAL_CLAUDE --continue" ;;
+  *)        cmd="$REAL_CLAUDE" ;;
+esac
+
+S="$(cs_session)"
+tmux -f "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/tmux.conf" \
+  has-session -t "$S" 2>/dev/null || tmux new-session -d -s "$S"
+
+# Create the window and capture its id so we can track it across renames.
+wid="$(tmux new-window -t "$S" -c "$DIR" -P -F '#{window_id}' "exec $cmd")"
+
+# Name + color: explicit name, else auto per scheme.
+if [ -n "$NAME" ]; then
+  color="$(cs_color_hash "$NAME")"; name="$NAME"
+else
+  pair="$(cs_alloc_name "$(cs_scheme "$SCHEME")" "$DIR")"
+  name="${pair%%$'\t'*}"; color="${pair##*$'\t'}"
+fi
+cs_apply_window "$S:$wid" "$name" "$color"
+cs_record_active "$name" "$color" "$wid" "$DIR"
+
+# If we're attached, jump to the new instance.
+[ -n "${TMUX:-}" ] && tmux select-window -t "$S:$wid"
+echo "started instance '$name' ($MODE) in $DIR"

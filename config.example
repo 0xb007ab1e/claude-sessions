@@ -1,0 +1,11 @@
+# claude-sessions configuration — copy to ~/.config/claude-sessions/config
+# Format: `key = value`, with # for comments.
+
+# Naming convention for auto-named instances: nato | project | random
+#   nato     -> alpha, bravo, charlie, …   (stable color per call-sign)
+#   project  -> <cwd-basename>-N           (color hashed from the name)
+#   random   -> <adjective>-<noun>         (color hashed from the name)
+name_scheme = nato
+
+# Auto-name every instance started via `cj` even without the -a flag.
+auto_name = false

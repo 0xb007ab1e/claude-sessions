@@ -32,6 +32,44 @@ cj          # attach; reuse an idle window for a fresh Claude, else open a new o
 - `cj` does **not** shadow `claude` — `claude` still starts a plain, non-tmux instance.
 - A desktop entry ("Claude (join tmux)") runs `cj` in your terminal — a clickable shortcut.
 
+## Naming, listing & hotkeys
+
+**Auto-name instances** (optional) so the list and status bar are readable:
+
+```bash
+cj -a                 # auto-name using your configured scheme
+cj -a project         # override the scheme for this call (nato|project|random)
+cj -n api             # explicit name
+```
+
+Pick your **naming convention** in `~/.config/claude-sessions/config`
+(`name_scheme = nato | project | random`), override per-shell with
+`$CLAUDE_NAME_SCHEME`, or per-call with `-a SCHEME`. Set `auto_name = true` to
+auto-name every `cj` without the flag. Each instance gets a stable **color**.
+
+**List** active + closed instances anytime:
+
+```bash
+claude-ls             # colored: ● active   ○ closed (with dir + uptime/closed-ago)
+```
+
+The list is backed by a registry at `~/.local/state/claude-sessions/registry.tsv`;
+instances flip to *closed* automatically when their window goes away.
+
+**Hotkeys** (prefix is `Ctrl-b`) — discover them all via the menu or cheat sheet:
+
+| Key | Action |
+|---|---|
+| `prefix + C` | **menu** of all actions below |
+| `prefix + L` | list instances |
+| `prefix + N` | new instance |
+| `prefix + R` | resume a past conversation |
+| `prefix + O` | reopen a closed instance |
+| `prefix + X` | stop the current instance (confirm) |
+| `prefix + ?` | cheat sheet |
+
+CLI equivalents: `claude-new [-m resume|continue]`, `claude-restore`, `claude-ls`.
+
 Manage the service:
 
 ```bash
@@ -54,20 +92,22 @@ time. Environment overrides:
 
 | Variable | Effect |
 |---|---|
-| `CLAUDE_TMUX_SESSION` | Session name (default `claude`) — honored by `cj`, `claude-session`, and the unit |
+| `CLAUDE_TMUX_SESSION` | Session name (default `claude`) — honored by every tool and the unit |
+| `CLAUDE_NAME_SCHEME` | Naming scheme (`nato`/`project`/`random`) — overrides config |
 | `TERMINAL` | Preferred terminal emulator for the desktop shortcut |
 | `CJ_CLAUDE` | Path to the Claude binary if not on `PATH` |
 
-If `loginctl enable-linger` needs privileges on your system, run it once:
+Config lives at `~/.config/claude-sessions/config` (created from `config.example`
+if absent). If `loginctl enable-linger` needs privileges, run once:
 `sudo loginctl enable-linger "$USER"`.
 
 **Uninstall:**
 
 ```bash
 systemctl --user disable --now claude-tmux.service
-rm -f ~/.config/systemd/user/claude-tmux.service
+rm -f ~/.config/systemd/user/claude-tmux.service ~/.config/claude-sessions/bindings.conf
 rm -f ~/.local/share/applications/claude-join.desktop
-rm -f ~/.local/bin/cj ~/.local/bin/claude-session
+rm -f ~/.local/bin/{cj,claude-session,claude-ls,claude-new,claude-restore,claude-popup}
 # then remove the `source-file …/tmux.conf` line from ~/.tmux.conf
 ```
 
@@ -75,9 +115,14 @@ rm -f ~/.local/bin/cj ~/.local/bin/claude-session
 
 | Path | What |
 |---|---|
-| `cj` | Primary join command (claude-join) |
+| `cj` | Primary join command (claude-join); `-a` auto-names |
+| `claude-ls` / `claude-new` / `claude-restore` | List / open / reopen instances |
+| `claude-popup` | Run a view inside a tmux popup |
 | `claude-session` | General launcher — one Claude per window in a named session |
-| `tmux.conf` | Phone-friendly tmux settings |
+| `lib.sh` | Shared helpers: config, naming, colors, registry |
+| `config.example` | Default config (`name_scheme`, `auto_name`) |
+| `tmux.conf` | Phone-friendly tmux settings (sources the key bindings) |
+| `tmux/bindings.conf.in` / `tmux/cheatsheet.txt` | Menu + key bindings template; cheat sheet |
 | `install.sh` | Portable, idempotent installer |
 | `systemd/claude-tmux.service.in` | Template for the boot-autostart user service |
 | `applications/claude-join.desktop.in` | Template for the desktop shortcut |

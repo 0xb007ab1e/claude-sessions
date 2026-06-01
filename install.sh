@@ -14,7 +14,7 @@
 #
 # Uninstall: see README.md.
 
-set -euo pipefail
+set -eo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 BIN="${XDG_BIN_HOME:-$HOME/.local/bin}"
@@ -27,10 +27,12 @@ ENABLE_BOOT=1
 TMUX_BIN="$(command -v tmux || true)"
 [ -n "$TMUX_BIN" ] || { echo "error: tmux not found on PATH" >&2; exit 1; }
 
-mkdir -p "$BIN" "$APPS" "$UNITDIR"
+CSCONF="$HOME/.config/claude-sessions"          # fixed: tmux source-file reads ~/.config
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/claude-sessions"
+mkdir -p "$BIN" "$APPS" "$UNITDIR" "$CSCONF" "$STATE"
 
 # 1. CLI shortcuts on PATH ----------------------------------------------------
-for f in cj claude-session; do
+for f in cj claude-session claude-ls claude-new claude-restore claude-popup; do
   ln -sf "$REPO/$f" "$BIN/$f"
   echo "linked   $BIN/$f"
 done
@@ -40,6 +42,19 @@ line="source-file $REPO/tmux.conf"
 touch "$HOME/.tmux.conf"
 grep -qxF "$line" "$HOME/.tmux.conf" || echo "$line" >> "$HOME/.tmux.conf"
 echo "sourced  $REPO/tmux.conf from ~/.tmux.conf"
+
+# 2b. config (don't clobber) + generated key bindings -------------------------
+if [ ! -f "$CSCONF/config" ]; then
+  cp "$REPO/config.example" "$CSCONF/config"
+  echo "wrote    $CSCONF/config (name_scheme=nato)"
+else
+  echo "kept     $CSCONF/config (already present)"
+fi
+sed "s#@BIN@#$BIN#g" "$REPO/tmux/bindings.conf.in" > "$CSCONF/bindings.conf"
+echo "wrote    $CSCONF/bindings.conf (tmux menu + keys)"
+case "$(tmux -V)" in *" 3."[2-9]*|*" "[4-9].*) : ;; *)
+  echo "warning: tmux >= 3.2 recommended for popups (you have $(tmux -V))" ;;
+esac
 
 # 3. systemd user service (boot autostart of the persistent session) ----------
 if command -v systemctl >/dev/null 2>&1; then

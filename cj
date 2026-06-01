@@ -2,48 +2,75 @@
 # cj — "claude-join": attach to the persistent, statically-named tmux session
 # and land in a running Claude instance.
 #
+# Usage: cj [-a [scheme]] [-n name] [-- claude-args…]
+#   -a [scheme]  auto-name the instance (and color it) using scheme
+#                nato|project|random (default: config/$CLAUDE_NAME_SCHEME/nato);
+#                also default-on if config has `auto_name = true`
+#   -n name      give the instance an explicit name (implies naming)
+#
 # Behaviour (from a normal shell):
-#   * ensure the `claude` session exists (the systemd user service normally
-#     starts it at boot; this is a fallback if it isn't up yet),
-#   * REUSE an idle shell window by launching Claude in it, or if every window
-#     already has Claude running, open a NEW window with a fresh instance,
-#   * attach you to the session.
+#   * ensure the session exists (the systemd user service normally starts it at
+#     boot; this is a fallback),
+#   * REUSE an idle shell window for a fresh Claude, else open a NEW window,
+#   * optionally name + color + register the instance, then attach.
 # Inside tmux already, it just runs the real Claude CLI in the current pane.
 #
-# It deliberately does NOT shadow `claude` — run `cj` (or click the desktop
-# shortcut) to join; run `claude` for a plain, non-tmux instance.
+# It deliberately does NOT shadow `claude` — run `cj` to join; run `claude` for
+# a plain, non-tmux instance.
 
-set -euo pipefail
+set -eo pipefail
 
-S="${CLAUDE_TMUX_SESSION:-claude}"
-CONF="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)/tmux.conf"
-# Resolve the real Claude CLI: explicit override > PATH lookup > common fallback.
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+source "$HERE/lib.sh"
+
+S="$(cs_session)"
+CONF="$HERE/tmux.conf"
 REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
 REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
 T=(tmux -f "$CONF")
+
+AUTONAME=0 SCHEME="" NAME=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -a|--auto) AUTONAME=1; shift
+               case "${1:-}" in nato|project|random) SCHEME="$1"; shift ;; esac ;;
+    -n|--name) NAME="${2:-}"; AUTONAME=1; shift 2 ;;
+    --)        shift; break ;;
+    -*)        echo "cj: unknown option $1" >&2; exit 1 ;;
+    *)         break ;;
+  esac
+done
+# Config can make auto-naming the default.
+[ "$AUTONAME" -eq 0 ] && [ "$(cs_config_get auto_name false)" = "true" ] && AUTONAME=1
 
 # Already inside tmux: just run the real CLI here (no nesting).
 if [ -n "${TMUX:-}" ]; then
   exec "$REAL_CLAUDE" "$@"
 fi
 
-# Make sure the session exists (fallback if the boot service hasn't run).
-if ! "${T[@]}" has-session -t "$S" 2>/dev/null; then
-  "${T[@]}" new-session -d -s "$S"
-fi
+# Ensure the session exists (fallback if the boot service hasn't run).
+"${T[@]}" has-session -t "$S" 2>/dev/null || "${T[@]}" new-session -d -s "$S"
 
-# Find an idle window whose active pane is a plain shell.
-idle="$("${T[@]}" list-windows -t "$S" \
-          -F '#{window_index} #{pane_current_command}' \
+# Reuse an idle shell window, else open a new one. Track the window id either way.
+idle="$("${T[@]}" list-windows -t "$S" -F '#{window_index} #{pane_current_command}' \
         | awk '$2 ~ /^(bash|zsh|sh|fish|-bash)$/ {print $1; exit}')"
-
 if [ -n "$idle" ]; then
-  # Reuse it: exec so the window closes cleanly when Claude exits.
+  wid="$("${T[@]}" display-message -t "$S:$idle" -p '#{window_id}')"
   "${T[@]}" send-keys -t "$S:$idle" "exec $REAL_CLAUDE $*" C-m
-  "${T[@]}" select-window -t "$S:$idle"
 else
-  # All windows busy: spin up a fresh instance in a new window.
-  "${T[@]}" new-window -t "$S" "exec $REAL_CLAUDE $*"
+  wid="$("${T[@]}" new-window -t "$S" -P -F '#{window_id}' "exec $REAL_CLAUDE $*")"
 fi
 
+if [ "$AUTONAME" -eq 1 ]; then
+  if [ -n "$NAME" ]; then
+    name="$NAME"; color="$(cs_color_hash "$NAME")"
+  else
+    pair="$(cs_alloc_name "$(cs_scheme "$SCHEME")" "$PWD")"
+    name="${pair%%$'\t'*}"; color="${pair##*$'\t'}"
+  fi
+  cs_apply_window "$S:$wid" "$name" "$color"
+  cs_record_active "$name" "$color" "$wid" "$PWD"
+fi
+
+"${T[@]}" select-window -t "$S:$wid"
 exec "${T[@]}" attach -t "$S"
