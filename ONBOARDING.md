@@ -34,24 +34,27 @@ The menu (`prefix C` / `F9` / tap the status bar):
 | Action | Key | Menu |
 |---|---|---|
 | **Open the menu** | `prefix C` (or **`F9`**, or **tap the session name** in the status bar) | — |
-| List instances — pick to **switch** (active) or **reopen** (closed) | `prefix L` | List |
-| New instance (current dir) | `prefix N` | New |
-| New instance in a chosen dir (fzf typeahead) | `prefix D` | New in dir… |
-| Rename instance | `prefix E` | Rename |
-| Change the current instance's directory (relaunch + resume) | `prefix G` | Change dir |
-| Resume a past conversation | `prefix R` | Resume |
-| Reopen a closed instance (exact convo, in its dir) | `prefix O` | Reopen closed |
-| Stop current instance | `prefix X` | Stop |
-| Interactive shell (sudo, logins, etc.) | `prefix B` | Shell here |
-| Cheat sheet | `prefix ?` | Cheat sheet |
+| Switch instance (tmux chooser; any terminal) | — | Switch instance (`s`) |
+| List instances — pick to **switch** (active) or **reopen** (closed) | `prefix L` | List instances (`l`) |
+| New instance (current dir) | `prefix N` | New instance (`n`) |
+| New instance in a chosen dir (fzf typeahead) | `prefix D` | New in dir… (`d`) |
+| Change the current instance's directory (relaunch + resume) | `prefix G` | Change dir (`c`) |
+| Rename instance | `prefix E` | Rename instance (`e`) |
+| Interactive shell (sudo, logins, etc.) | `prefix B` | Shell here (`b`) |
+| Resume a past conversation | `prefix R` | Resume conversation (`r`) |
+| Reopen a closed instance (exact convo, in its dir) | `prefix O` | Reopen closed (`o`) |
+| Restore the previous session's instances | — | Restore last session (`a`) |
+| Stop current instance | `prefix X` | Stop current (`x`) |
+| Cheat sheet | `prefix ?` | Cheat sheet (`?`) |
 
 No function keys on your phone? **Tap the session name** (far left of the status
 bar) to open the menu, or use `prefix` + the letter. Switch instances with
 `F7`/`F8`, `Alt+←/→`, the menu's *Switch instance*, or tap a window name.
 
-CLI equivalents: `claude-ls`, `claude-new [-m resume|continue] [-D]`,
-`claude-restore`, `claude-restore-all`, `claude-rename`, `claude-shell`,
-`claude-session` (multi-window layouts).
+CLI equivalents: `claude-ls`, `claude-pick` (selectable list), `claude-new
+[-m resume|continue] [-D]`, `claude-cd` (move the instance to another dir,
+resuming), `claude-restore`, `claude-restore-all`, `claude-rename`,
+`claude-shell`, `claude-session` (multi-window layouts).
 
 ## Screenshots — menu actions & status bar
 
