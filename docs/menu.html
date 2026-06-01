@@ -1,0 +1,35 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  :root{ --bg:#15171c; --fg:#cfd3dc; --dim:#7d8492; --box:#3a3f4b;
+         --sel-bg:#2d4f67; --sel-fg:#ffffff; --key:#7fd1ff; --title:#ffd479; }
+  html,body{margin:0;background:var(--bg);}
+  body{ font:15px/1.5 "DejaVu Sans Mono",ui-monospace,monospace; color:var(--fg); padding:24px; }
+  .wrap{ width:300px; }
+  .menu{ border:1px solid var(--box); border-radius:4px; background:#181b21;
+         box-shadow:0 6px 24px rgba(0,0,0,.45); overflow:hidden; }
+  .title{ text-align:center; font-weight:700; color:var(--title);
+           padding:6px 14px; border-bottom:1px solid var(--box); letter-spacing:.5px;}
+  .row{ display:flex; justify-content:space-between; padding:3px 14px; }
+  .row.sel{ background:var(--sel-bg); color:var(--sel-fg); }
+  .k{ color:var(--key); font-weight:700; }
+  .row.sel .k{ color:#fff; }
+  .bar{ margin-top:12px; color:var(--dim); font-size:13px; white-space:nowrap; }
+  .bar b{color:#8fd16a;}
+</style></head><body>
+  <div class="wrap">
+    <div class="menu">
+      <div class="title"> claude instances </div>
+      <div class="row sel"><span>Switch instance</span><span class="k">s</span></div>
+      <div class="row"><span>List instances</span><span class="k">l</span></div>
+      <div class="row"><span>New instance</span><span class="k">n</span></div>
+      <div class="row"><span>New in dir…</span><span class="k">d</span></div>
+      <div class="row"><span>Rename instance</span><span class="k">e</span></div>
+      <div class="row"><span>Shell here</span><span class="k">b</span></div>
+      <div class="row"><span>Resume conversation</span><span class="k">r</span></div>
+      <div class="row"><span>Reopen closed</span><span class="k">o</span></div>
+      <div class="row"><span>Restore last session</span><span class="k">a</span></div>
+      <div class="row"><span>Stop current</span><span class="k">x</span></div>
+      <div class="row"><span>Cheat sheet</span><span class="k">?</span></div>
+    </div>
+    <div class="bar"><b>● alpha</b> &nbsp;○ bravo&nbsp; ○ charlie</div>
+  </div>
+</body></html>

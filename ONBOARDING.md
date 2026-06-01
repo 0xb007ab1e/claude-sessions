@@ -27,6 +27,10 @@ cj            # join the persistent session (reuses an idle window or opens one)
 ```
 Inside the session, everything is one keypress away. Prefix is **`Ctrl-b`**.
 
+The menu (`prefix C` / `F9` / tap the status bar):
+
+![claude-sessions instance menu](docs/menu.png)
+
 | Action | Key | Menu |
 |---|---|---|
 | **Open the menu** | `prefix C` (or **`F9`**, or **tap the session name** in the status bar) | — |
