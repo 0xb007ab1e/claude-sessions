@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# claude-model — pick a model (and optional effort) interactively, then open a
+# new instance with them. Phone-friendly entry point for the per-instance
+# model/effort feature (the CLI equivalent is `cj -M MODEL -E EFFORT` or
+# `claude-new -M MODEL -E EFFORT`). Backs the menu's "New (model)…" / prefix+M.
+# Meant to run inside a tmux popup; uses fzf when available, else a prompt.
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+
+MODELS=(opus sonnet haiku)
+EFFORTS=(default low medium high xhigh max)
+
+pick() {  # pick PROMPT ITEM...  -> chosen item on stdout (empty if cancelled)
+  local prompt="$1"; shift
+  if command -v fzf >/dev/null 2>&1; then
+    printf '%s\n' "$@" | fzf --prompt="$prompt> " --height=100% --reverse 2>/dev/null || true
+  else
+    local i=1 it
+    for it in "$@"; do printf '  %d) %s\n' "$i" "$it" >&2; i=$((i+1)); done
+    printf '%s (number, Enter=first): ' "$prompt" >&2; read -r n
+    [ -n "${n:-}" ] || { echo "$1"; return; }
+    eval "echo \"\${$n:-}\""
+  fi
+}
+
+model="$(pick model "${MODELS[@]}")"
+[ -n "$model" ] || { echo "cancelled."; exit 0; }
+effort="$(pick effort "${EFFORTS[@]}")"
+[ "$effort" = default ] && effort=""
+
+args=(-M "$model"); [ -n "$effort" ] && args+=(-E "$effort")
+exec "$HERE/claude-new" "${args[@]}"

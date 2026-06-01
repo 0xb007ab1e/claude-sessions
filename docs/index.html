@@ -40,6 +40,7 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-rename"><code>claude-rename</code></a></td><td>Rename an instance (window + registry).</td></tr>
   <tr><td><a href="../claude-shell"><code>claude-shell</code></a></td><td>Open an interactive shell window (for commands Claude can't run), in the current dir.</td></tr>
   <tr><td><a href="../claude-cd"><code>claude-cd</code></a></td><td>Move the current instance to a chosen directory, relaunching it there (resume) + updating the registry.</td></tr>
+  <tr><td><a href="../claude-model"><code>claude-model</code></a></td><td>Pick a model (and optional effort) interactively, then open a new instance with them.</td></tr>
   <tr><td><a href="../completions/claude-sessions.bash"><code>completions/claude-sessions.bash</code></a></td><td>Bash completion (sourced from <code>~/.bashrc</code>).</td></tr>
   <tr><td><a href="../tests/lib.bats"><code>tests/lib.bats</code></a></td><td>Unit tests for <code>lib.sh</code> (run with <code>bats tests/</code>).</td></tr>
   <tr><td><a href="../tests/integration.sh"><code>tests/integration.sh</code></a></td><td>End-to-end tests: fzf picker (send-keys in a pane) + popup exec (display-popup); private socket; skips without tmux/fzf.</td></tr>
@@ -72,13 +73,16 @@ and the ANSI list output.</p>
 <p>The <strong>registry</strong> is a TSV at
 <code>$XDG_STATE_HOME/claude-sessions/registry.tsv</code> (default
 <code>~/.local/state/…</code>), one row per instance:
-<code>name · color · session · window_id · cwd · started · status · ended · transcript</code>.
+<code>name · color · session · window_id · cwd · started · status · ended · transcript · model · effort</code>.
 A row flips to <code>closed</code> when its window disappears — detected on
 demand by <code>claude-ls</code> and promptly by the <code>window-unlinked</code>
 tmux hook. At most one <code>active</code> row exists per window id. The
 <code>transcript</code> column is the instance's Claude conversation (session)
 id, linked best-effort after launch, so a closed instance can be reopened on the
-<em>exact</em> conversation.</p>
+<em>exact</em> conversation. The optional <code>model</code> / <code>effort</code>
+columns record a per-instance <code>--model</code> / <code>--effort</code>
+override (shown as a <code>{model&nbsp;@effort}</code> badge), re-applied when the
+instance is reopened or moved.</p>
 
 <h2>lib.sh — functions</h2>
 <p>Shared, sourced by every tool (never executed directly).</p>
@@ -170,7 +174,7 @@ instance (it targets the current window).</p></div>
 <p>Rename the current (or targeted) instance, updating both the tmux window and
 its registry row. Prompts for the name if none is given. Bound to the menu
 ("Rename instance") and <code>prefix+E</code>, which launch it in a popup.</p></div>
-<div class="sym"><h3 id="cmd-new"><code>claude-new [-m new|resume|continue] [-c DIR] [-n NAME] [-a SCHEME] [-i ID] [-D]</code></h3>
+<div class="sym"><h3 id="cmd-new"><code>claude-new [-m new|resume|continue] [-c DIR] [-n NAME] [-a SCHEME] [-i ID] [-M MODEL] [-E EFFORT] [-D]</code></h3>
 <p>Open a new window in the session running Claude in the chosen mode, auto-named
 &amp; colored (or <code>-n NAME</code>), recorded, and switched to (it sets the
 session's active window, so the client follows — works from a menu/key too).
@@ -179,8 +183,20 @@ The directory defaults to the <strong>current window's</strong>
 sets it explicitly and <code>-D</code> prompts for it via
 <a href="#cs-pickdir"><code>cs_pick_dir</code></a> (Tab completion, or fzf
 typeahead if installed — used by the menu's "New in dir…"). <code>-i ID</code>
-resumes an <em>exact</em> conversation. Resolves the Claude binary via
+resumes an <em>exact</em> conversation. <code>-M MODEL</code> /
+<code>-E EFFORT</code> pass <code>--model</code> / <code>--effort</code> to Claude
+and record them in the registry (falling back to <code>default_model</code> /
+<code>default_effort</code> in config; effort is validated against
+<code>low|medium|high|xhigh|max</code>). Resolves the Claude binary via
 <code>$CJ_CLAUDE</code>/PATH.</p></div>
+<div class="sym"><h3 id="cmd-model"><code>claude-model</code></h3>
+<p>Phone-friendly entry point for per-instance model/effort: pick a model
+(<code>opus</code>/<code>sonnet</code>/<code>haiku</code>) and an optional effort
+level (fzf if present, else a numbered prompt), then hand off to
+<a href="#cmd-new"><code>claude-new -M … -E …</code></a>. Bound to the menu's
+"New (model)…" and <code>prefix+M</code>, which launch it in a popup. The CLI
+equivalents are <code>cj -M MODEL -E EFFORT</code> and
+<code>claude-new -M MODEL -E EFFORT</code>.</p></div>
 <div class="sym"><h3 id="cmd-restore"><code>claude-restore</code></h3>
 <p>Reconcile, list closed instances (most-recent first, de-duped by name), let
 you pick one (fzf if present, else a numbered prompt), and reopen it in its

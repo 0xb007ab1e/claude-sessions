@@ -64,6 +64,7 @@ instances flip to *closed* automatically when their window goes away.
 | `prefix + L` | list instances — selectable picker (Enter: switch active / reopen closed) |
 | `prefix + N` | new instance (in the current window's directory) |
 | `prefix + D` | new instance in a directory you type ("New in dir…") |
+| `prefix + M` | new instance on a chosen model / effort ("New (model)…") |
 | `prefix + E` | rename the current instance |
 | `prefix + G` | change the current instance's directory (relaunch + resume) |
 | `prefix + B` | open an interactive shell in the current dir ("Shell here") |
@@ -84,11 +85,11 @@ key — a bare key or `Ctrl-C` goes to Claude, not tmux):
 | **tap the session name** (far left of the status bar) | **open the menu** — best on phones/Termux (no function keys) |
 | mouse | tap a window name in the status bar to switch |
 
-CLI equivalents: `claude-pick` (selectable list), `claude-new [-m resume|continue]`,
-`claude-restore`, `claude-ls`, `claude-rename [name]`, `claude-cd` (move the
-current instance to another directory, resuming), `claude-shell` (an interactive
-shell for commands Claude can't run — `sudo`, logins, etc.). Trim closed history
-with `claude-ls --prune [N]`.
+CLI equivalents: `claude-pick` (selectable list), `claude-new [-m resume|continue] [-M model] [-E effort]`,
+`claude-model` (pick model/effort, then launch), `claude-restore`, `claude-ls`,
+`claude-rename [name]`, `claude-cd` (move the current instance to another
+directory, resuming), `claude-shell` (an interactive shell for commands Claude
+can't run — `sudo`, logins, etc.). Trim closed history with `claude-ls --prune [N]`.
 
 **Choosing the directory:** a new instance opens in the current window's
 directory by default. To pick one, use **New in dir…** (`prefix + D`) or
@@ -100,6 +101,22 @@ typeahead picker** if `fzf` is installed (`sudo apt install fzf fd-find`) — ha
 on a phone. The picker searches recently-used dirs plus the tree under
 **`search_dir`** in config (default `$HOME`; set it to e.g. `~/src` to scope the
 list to your projects).
+
+### Per-instance model & effort
+
+Launch an instance on a specific **model** and/or **effort** level — recorded in
+the registry and shown as a `{model @effort}` badge in the list and picker, and
+carried over when the instance is reopened or moved:
+
+```bash
+cj -M opus -E high            # join on opus, high effort
+claude-new -M sonnet          # new instance on sonnet (default effort)
+```
+
+`-M` takes a model alias (`sonnet`/`opus`/`haiku`) or a full id (e.g.
+`claude-opus-4-8`); `-E` takes `low | medium | high | xhigh | max`. On a phone,
+use **New (model)…** (`prefix + M`) to pick both from a menu. Set
+`default_model` / `default_effort` in config to apply them to every new instance.
 
 ### Tab-completion & tests
 
@@ -176,6 +193,7 @@ rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the
 | `cj` | Primary join command (claude-join); `-a` auto-names |
 | `claude-ls` / `claude-pick` / `claude-new` / `claude-restore` | List / pick (switch·reopen) / open / reopen instances |
 | `claude-cd` / `claude-rename` / `claude-shell` | Move dir (resume) / rename / shell |
+| `claude-model` | Pick model/effort, then open a new instance |
 | `claude-popup` | Run a view inside a tmux popup |
 | `claude-session` | General launcher — one Claude per window in a named session |
 | `lib.sh` | Shared helpers: config, naming, colors, registry |

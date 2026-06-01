@@ -19,26 +19,29 @@ if ! command -v fzf >/dev/null 2>&1; then
   "$HERE/claude-ls"; printf '\n\033[2m[fzf not installed — read-only list; enter to close]\033[0m '; read -r _; exit 0
 fi
 
-# fzf lines: status \t name \t window_id \t dir \t transcript \t <display>
+# fzf lines: status \t name \t window_id \t dir \t transcript \t model \t effort \t <display>
 lines="$(awk -F'\t' -v now="$now" '
   function ago(s,  d){d=now-s; if(d<60)return d"s"; if(d<3600)return int(d/60)"m";
     if(d<86400)return int(d/3600)"h"; return int(d/86400)"d"}
-  $7=="active"{ printf "%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8F %-16s %-28s up %s\n",     $7,$1,$4,$5,$9,$1,$5,ago($6) }
-  $7=="closed"{ printf "%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8B %-16s %-28s closed %s ago\n",$7,$1,$4,$5,$9,$1,$5,ago($8) }
+  function badge(m,e){ if(m==""&&e=="")return ""; if(e=="")return " {"m"}";
+    if(m=="")return " {@"e"}"; return " {"m" @"e"}" }
+  $7=="active"{ printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8F %-16s %-28s up %s%s\n",     $7,$1,$4,$5,$9,$10,$11,$1,$5,ago($6),badge($10,$11) }
+  $7=="closed"{ printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t\xE2\x97\x8B %-16s %-28s closed %s ago%s\n",$7,$1,$4,$5,$9,$10,$11,$1,$5,ago($8),badge($10,$11) }
 ' "$reg")"
 [ -n "$lines" ] || { echo "no instances."; printf '\n[enter]'; read -r _; exit 0; }
 
-sel="$(printf '%s\n' "$lines" | fzf --delimiter=$'\t' --with-nth='6..' \
+sel="$(printf '%s\n' "$lines" | fzf --delimiter=$'\t' --with-nth='8..' \
         --prompt='instance> ' --height='100%' --reverse \
         --header='Enter: switch (active) / reopen (closed) · type to filter' 2>/dev/null)"
 [ -n "$sel" ] || exit 0
-IFS=$'\t' read -r status name wid dir transcript _disp <<<"$sel"
+IFS=$'\t' read -r status name wid dir transcript model effort _disp <<<"$sel"
 
 if [ "$status" = active ]; then
   tmux select-window -t "$S:$wid" 2>/dev/null || tmux select-window -t "$S:$name" 2>/dev/null || true
   echo "switched to '$name'"
 else
   dir="${dir:-$HOME}"
-  if [ -n "$transcript" ]; then exec "$HERE/claude-new" -i "$transcript" -c "$dir" -n "$name"
-  else                          exec "$HERE/claude-new" -m continue -c "$dir" -n "$name"; fi
+  me=(); [ -n "$model" ] && me+=(-M "$model"); [ -n "$effort" ] && me+=(-E "$effort")
+  if [ -n "$transcript" ]; then exec "$HERE/claude-new" -i "$transcript" -c "$dir" -n "$name" "${me[@]}"
+  else                          exec "$HERE/claude-new" -m continue -c "$dir" -n "$name" "${me[@]}"; fi
 fi

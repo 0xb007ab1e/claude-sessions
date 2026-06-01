@@ -34,7 +34,7 @@ mkdir -p "$BIN" "$APPS" "$UNITDIR" "$CSCONF" "$STATE"
 # 1. CLI shortcuts on PATH ----------------------------------------------------
 for f in cj claude-session claude-ls claude-new claude-restore claude-popup \
          claude-notify claude-snapshot claude-restore-all claude-rename claude-shell \
-         claude-pick claude-cd; do
+         claude-pick claude-cd claude-model; do
   ln -sf "$REPO/$f" "$BIN/$f"
   echo "linked   $BIN/$f"
 done

@@ -11,9 +11,10 @@ cs_reconcile
 reg="$(cs_registry)"
 [ -f "$reg" ] || { echo "no registry yet — nothing to restore."; exit 0; }
 
-# Most recent closed instances first (de-dup by name). Each row: name<TAB>cwd<TAB>transcript
-mapfile -t rows < <(awk -F'\t' '$7=="closed"{print $8"\t"$1"\t"$5"\t"$9}' "$reg" \
-                    | sort -rn | awk -F'\t' '!seen[$2]++{print $2"\t"$3"\t"$4}')
+# Most recent closed instances first (de-dup by name).
+# Each row: name<TAB>cwd<TAB>transcript<TAB>model<TAB>effort
+mapfile -t rows < <(awk -F'\t' '$7=="closed"{print $8"\t"$1"\t"$5"\t"$9"\t"$10"\t"$11}' "$reg" \
+                    | sort -rn | awk -F'\t' '!seen[$2]++{print $2"\t"$3"\t"$4"\t"$5"\t"$6}')
 [ "${#rows[@]}" -gt 0 ] || { echo "no closed instances to reopen."; exit 0; }
 
 choice=""
@@ -33,9 +34,11 @@ else
 fi
 [ -n "$choice" ] || { echo "cancelled."; exit 0; }
 
-# Pull the dir + transcript for the chosen name.
+# Pull dir + transcript + model/effort for the chosen name. Use cut (cs_field),
+# not `IFS=$'\t' read`, which collapses consecutive tabs and mis-parses empties.
 sel_row="$(printf '%s\n' "${rows[@]}" | awk -F'\t' -v n="$choice" '$1==n{print; exit}')"
-IFS=$'\t' read -r _ dir transcript <<<"$sel_row"
+dir="$(cs_field 2 "$sel_row")"; transcript="$(cs_field 3 "$sel_row")"
+model="$(cs_field 4 "$sel_row")"; effort="$(cs_field 5 "$sel_row")"
 dir="${dir:-$HOME}"
 
 # Offer to change the directory (completion/typeahead; keep the saved one or override).
@@ -43,10 +46,11 @@ dir="$(cs_pick_dir "$dir")"
 dir="${dir/#\~/$HOME}"
 [ -d "$dir" ] || { echo "no such directory: $dir"; exit 1; }
 
+me=(); [ -n "$model" ] && me+=(-M "$model"); [ -n "$effort" ] && me+=(-E "$effort")
 if [ -n "$transcript" ]; then
   echo "reopening '$choice' in $dir (exact conversation $transcript) ..."
-  exec "$HERE/claude-new" -i "$transcript" -c "$dir" -n "$choice"
+  exec "$HERE/claude-new" -i "$transcript" -c "$dir" -n "$choice" "${me[@]}"
 else
   echo "reopening '$choice' in $dir (most recent conversation there) ..."
-  exec "$HERE/claude-new" -m continue -c "$dir" -n "$choice"
+  exec "$HERE/claude-new" -m continue -c "$dir" -n "$choice" "${me[@]}"
 fi

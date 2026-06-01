@@ -138,17 +138,19 @@ cs_apply_window() {
 }
 
 # Append an active row, keeping at most one active row per window id (a reused
-# window supersedes its previous active row). cs_record_active NAME COLOR WID CWD [TRANSCRIPT]
+# window supersedes its previous active row).
+#   cs_record_active NAME COLOR WID CWD [TRANSCRIPT] [MODEL] [EFFORT]
 # Column 9 (transcript) defaults empty (filled later by cs_link_transcripts), or
-# is set when known up front (e.g. resuming a specific conversation).
+# is set when known up front (e.g. resuming a specific conversation). Columns 10
+# (model) and 11 (effort) record a per-instance model/effort override if used.
 cs_record_active() {
   local reg tmp; reg="$(cs_registry)"; mkdir -p "$(cs_state_dir)"
   if [ -f "$reg" ]; then
     tmp="$(mktemp)"
     awk -F'\t' -v wid="$3" '!($7=="active" && $4==wid)' "$reg" > "$tmp" && mv "$tmp" "$reg"
   fi
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$1" "$2" "$(cs_session)" "$3" "$4" "$(date +%s)" active "" "${5:-}" >> "$reg"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$1" "$2" "$(cs_session)" "$3" "$4" "$(date +%s)" active "" "${5:-}" "${6:-}" "${7:-}" >> "$reg"
 }
 
 # Claude's transcript directory for a cwd (non-alphanumerics → '-', matching
@@ -174,7 +176,7 @@ cs_find_transcript() {
 # corrupts rows with an empty field (e.g. active rows have an empty `ended`). So
 # read the whole line and pull fields with cut, which preserves empty fields.
 cs_link_transcripts() {
-  local reg tmp line status transcript cwd started newt
+  local reg tmp line status transcript cwd started newt rest
   reg="$(cs_registry)"; [ -f "$reg" ] || return 0
   tmp="$(mktemp)"
   while IFS= read -r line; do
@@ -182,7 +184,12 @@ cs_link_transcripts() {
     if [ "$status" = active ] && [ -z "$transcript" ]; then
       cwd="$(cut -f5 <<<"$line")"; started="$(cut -f6 <<<"$line")"
       newt="$(cs_find_transcript "$cwd" "$started")"
-      [ -n "$newt" ] && line="$(cut -f1-8 <<<"$line")$(printf '\t%s' "$newt")"
+      if [ -n "$newt" ]; then
+        # Splice the new id into column 9 while preserving any trailing columns
+        # (10 model / 11 effort) — a bare cut -f1-8 + f9 would drop them.
+        rest="$(cut -f10- <<<"$line")"
+        line="$(cut -f1-8 <<<"$line")$(printf '\t%s' "$newt")${rest:+$(printf '\t%s' "$rest")}"
+      fi
     fi
     printf '%s\n' "$line"
   done < "$reg" > "$tmp" && mv "$tmp" "$reg"
