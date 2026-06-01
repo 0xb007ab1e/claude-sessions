@@ -24,7 +24,13 @@ while getopts ":m:c:n:a:i:h" o; do
     *) echo "claude-new: bad option" >&2; exit 1 ;;
   esac
 done
-DIR="${DIR:-$PWD}"; DIR="${DIR/#\~/$HOME}"
+# No explicit -c: inherit the current tmux window's directory (so a new instance
+# opens where you're working, not the server's home dir), falling back to $PWD.
+if [ -z "$DIR" ]; then
+  DIR="$(tmux display-message -p '#{pane_current_path}' 2>/dev/null || true)"
+  DIR="${DIR:-$PWD}"
+fi
+DIR="${DIR/#\~/$HOME}"
 
 REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
 REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
