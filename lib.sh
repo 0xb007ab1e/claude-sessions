@@ -161,3 +161,22 @@ cs_reconcile() {
   ' "$reg" > "$tmp" && mv "$tmp" "$reg"
   cs_link_transcripts   # capture transcript ids for still-active instances
 }
+
+# Rename a window and update its active registry row. cs_set_name WID NEWNAME
+cs_set_name() {
+  local wid="$1" newname="$2" reg tmp
+  tmux rename-window -t "$(cs_session):$wid" "$newname" 2>/dev/null || true
+  reg="$(cs_registry)"; [ -f "$reg" ] || return 0
+  tmp="$(mktemp)"
+  awk -F'\t' -v OFS='\t' -v wid="$wid" -v n="$newname" \
+    '$4==wid && $7=="active"{$1=n} {print}' "$reg" > "$tmp" && mv "$tmp" "$reg"
+}
+
+# Keep all active rows + the most recently-closed N (by end time). cs_prune [N]
+cs_prune() {
+  local keep="${1:-50}" reg tmp; reg="$(cs_registry)"; [ -f "$reg" ] || return 0
+  tmp="$(mktemp)"
+  { awk -F'\t' '$7=="active"' "$reg"
+    awk -F'\t' '$7=="closed"' "$reg" | sort -t"$(printf '\t')" -k8,8nr | head -n "$keep"
+  } > "$tmp" && mv "$tmp" "$reg"
+}

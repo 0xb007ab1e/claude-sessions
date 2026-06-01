@@ -36,6 +36,9 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-notify"><code>claude-notify</code></a></td><td>Notify (desktop / ntfy / Pushover) when an instance needs attention.</td></tr>
   <tr><td><a href="../claude-snapshot"><code>claude-snapshot</code></a></td><td>Save active instances (name + dir) for restore after reboot.</td></tr>
   <tr><td><a href="../claude-restore-all"><code>claude-restore-all</code></a></td><td>Reopen the last session's instances (boot hook or manual).</td></tr>
+  <tr><td><a href="../claude-rename"><code>claude-rename</code></a></td><td>Rename an instance (window + registry).</td></tr>
+  <tr><td><a href="../completions/claude-sessions.bash"><code>completions/claude-sessions.bash</code></a></td><td>Bash completion (sourced from <code>~/.bashrc</code>).</td></tr>
+  <tr><td><a href="../tests/lib.bats"><code>tests/lib.bats</code></a></td><td>Unit tests for <code>lib.sh</code> (run with <code>bats tests/</code>).</td></tr>
   <tr><td><a href="../claude-session"><code>claude-session</code></a></td><td>General launcher: build a named session, one Claude per window (resume modes, <code>-a</code>).</td></tr>
   <tr><td><a href="../lib.sh"><code>lib.sh</code></a></td><td>Shared helpers: config, naming schemes, color palette, the instance registry.</td></tr>
   <tr><td><a href="../config.example"><code>config.example</code></a></td><td>Default config (<code>name_scheme</code>, <code>auto_name</code>).</td></tr>
@@ -109,12 +112,22 @@ modified at/after an instance's start time (its session id); and fill the
 registry's <code>transcript</code> column for active rows that don't have one yet.
 Best-effort — if the id can't be determined, restore falls back to
 <code>--continue</code> in the directory.</p></div>
+<div class="sym"><h3 id="cs-setname"><code>cs_set_name(window_id, newname)</code></h3>
+<p>Rename a window and update its active registry row's name (color kept).</p></div>
+<div class="sym"><h3 id="cs-prune"><code>cs_prune(keep = 50)</code></h3>
+<p>Keep all active rows plus the most recently-closed <code>keep</code> rows;
+drop older closed history.</p></div>
 
 <h2>Instance commands</h2>
-<div class="sym"><h3 id="cmd-ls"><code>claude-ls [--reconcile-only]</code></h3>
+<div class="sym"><h3 id="cmd-ls"><code>claude-ls [--reconcile-only | --prune [N]]</code></h3>
 <p>Reconcile, then print active and recently-closed instances with colored
 name dots, directory, and uptime/closed-ago. <code>--reconcile-only</code> just
-updates the registry (used by the tmux close hook).</p></div>
+updates the registry (used by the tmux close hook); <code>--prune [N]</code>
+trims closed history to the newest N (default 50).</p></div>
+<div class="sym"><h3 id="cmd-rename"><code>claude-rename [-t WINDOW_ID] [NEWNAME]</code></h3>
+<p>Rename the current (or targeted) instance, updating both the tmux window and
+its registry row. Prompts for the name if none is given. Bound to the menu
+("Rename instance") and <code>prefix+E</code>, which launch it in a popup.</p></div>
 <div class="sym"><h3 id="cmd-new"><code>claude-new [-m new|resume|continue] [-c DIR] [-n NAME] [-a SCHEME] [-i ID]</code></h3>
 <p>Open a new window in the session running Claude in the chosen mode, auto-named
 &amp; colored (or <code>-n NAME</code>), recorded, and selected if attached.
@@ -164,6 +177,7 @@ interactive attaches). Require tmux ≥ 3.2.</p>
   <tr><td><code>prefix + C</code></td><td>open the action <strong>menu</strong> (all actions below)</td></tr>
   <tr><td><code>prefix + L</code></td><td>list instances (popup)</td></tr>
   <tr><td><code>prefix + N</code></td><td>new instance</td></tr>
+  <tr><td><code>prefix + E</code></td><td>rename the current instance</td></tr>
   <tr><td><code>prefix + R</code></td><td>resume a past conversation (<code>claude --resume</code>)</td></tr>
   <tr><td><code>prefix + O</code></td><td>reopen a closed instance</td></tr>
   <tr><td><code>prefix + X</code></td><td>stop the current instance (confirm)</td></tr>
@@ -331,5 +345,15 @@ ssh &lt;host&gt; -t 'claude-session -g'           # grouped attach from another 
   <tr><td>Jump to window N</td><td><code>Ctrl-b 1</code> … <code>Ctrl-b 9</code></td></tr>
   <tr><td>Detach (leave running)</td><td><code>Ctrl-b d</code></td></tr>
 </table>
+
+<h2>Development</h2>
+<p>Shell completion (<code>completions/claude-sessions.bash</code>) is sourced
+from <code>~/.bashrc</code> by the installer; it completes flags and scheme
+values for <code>cj</code>, <code>claude-new</code>, <code>claude-ls</code>, and
+<code>claude-session</code> (zsh: run <code>autoload -U +X bashcompinit &amp;&amp;
+bashcompinit</code> first). Unit tests for <code>lib.sh</code> live in
+<code>tests/lib.bats</code> — run <code>bats tests/</code> (each test uses an
+isolated <code>HOME</code>/state and a non-existent session, so no real tmux
+server is touched).</p>
 </body>
 </html>

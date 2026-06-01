@@ -9,6 +9,7 @@ bind C display-menu -T "#[align=centre,bold] claude instances " \
   "Switch instance"      s "choose-tree -Zw" \
   "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-popup ls'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
+  "Rename instance"      e "display-popup -E -w 60% -h 28% '@BIN@/claude-rename'" \
   "Resume conversation"  r "run-shell '@BIN@/claude-new -m resume'" \
   "Reopen closed"        o "display-popup -E -w 74% -h 74% '@BIN@/claude-restore'" \
   "Restore last session" a "run-shell '@BIN@/claude-restore-all'" \
@@ -18,6 +19,7 @@ bind C display-menu -T "#[align=centre,bold] claude instances " \
 # ── Direct keys ─────────────────────────────────────────────────────────────
 bind L display-popup -E -w 84% -h 72% "@BIN@/claude-popup ls"
 bind N run-shell "@BIN@/claude-new"
+bind E display-popup -E -w 60% -h 28% "@BIN@/claude-rename"
 bind R run-shell "@BIN@/claude-new -m resume"
 bind O display-popup -E -w 74% -h 74% "@BIN@/claude-restore"
 bind X confirm-before -p "stop instance #W? (y/n)" kill-window
@@ -30,6 +32,7 @@ bind -n F9 display-menu -T "#[align=centre,bold] claude instances " \
   "Switch instance"      s "choose-tree -Zw" \
   "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-popup ls'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
+  "Rename instance"      e "display-popup -E -w 60% -h 28% '@BIN@/claude-rename'" \
   "Resume conversation"  r "run-shell '@BIN@/claude-new -m resume'" \
   "Reopen closed"        o "display-popup -E -w 74% -h 74% '@BIN@/claude-restore'" \
   "Restore last session" a "run-shell '@BIN@/claude-restore-all'" \

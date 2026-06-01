@@ -1,0 +1,40 @@
+# Bash completion for the claude-sessions tools.
+# Sourced from ~/.bashrc by install.sh. For zsh, run `autoload -U +X bashcompinit
+# && bashcompinit` first, then source this file.
+
+_cs_schemes='nato project random'
+
+_cj_complete() {
+  local cur prev; cur="${COMP_WORDS[COMP_CWORD]}"; prev="${COMP_WORDS[COMP_CWORD-1]}"
+  case "$prev" in
+    -a) COMPREPLY=($(compgen -W "$_cs_schemes" -- "$cur")); return ;;
+  esac
+  COMPREPLY=($(compgen -W "-a -n --auto --name" -- "$cur"))
+}
+complete -F _cj_complete cj
+
+_claude_new_complete() {
+  local cur prev; cur="${COMP_WORDS[COMP_CWORD]}"; prev="${COMP_WORDS[COMP_CWORD-1]}"
+  case "$prev" in
+    -m) COMPREPLY=($(compgen -W "new resume continue" -- "$cur")); return ;;
+    -a) COMPREPLY=($(compgen -W "$_cs_schemes" -- "$cur")); return ;;
+    -c) COMPREPLY=($(compgen -d -- "$cur")); return ;;
+  esac
+  COMPREPLY=($(compgen -W "-m -c -n -a -i" -- "$cur"))
+}
+complete -F _claude_new_complete claude-new
+
+_claude_ls_complete() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  COMPREPLY=($(compgen -W "--reconcile-only --prune" -- "$cur"))
+}
+complete -F _claude_ls_complete claude-ls
+
+_claude_session_complete() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  COMPREPLY=($(compgen -W "-s -a -g -n -h" -- "$cur"))
+}
+complete -F _claude_session_complete claude-session
+
+# Simple flag/no-arg completers for the rest.
+complete -W "--if-enabled" claude-restore-all 2>/dev/null || true
