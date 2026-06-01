@@ -32,10 +32,16 @@ STATE="${XDG_STATE_HOME:-$HOME/.local/state}/claude-sessions"
 mkdir -p "$BIN" "$APPS" "$UNITDIR" "$CSCONF" "$STATE"
 
 # 1. CLI shortcuts on PATH ----------------------------------------------------
-for f in cj claude-session claude-ls claude-new claude-restore claude-popup; do
+for f in cj claude-session claude-ls claude-new claude-restore claude-popup claude-rename; do
   ln -sf "$REPO/$f" "$BIN/$f"
   echo "linked   $BIN/$f"
 done
+
+# 1b. bash completion (sourced from ~/.bashrc, idempotent) --------------------
+cline="[ -f $REPO/completions/claude-sessions.bash ] && . $REPO/completions/claude-sessions.bash"
+touch "$HOME/.bashrc"
+grep -qxF "$cline" "$HOME/.bashrc" || echo "$cline" >> "$HOME/.bashrc"
+echo "sourced  bash completion from ~/.bashrc"
 
 # 2. phone-friendly tmux config (sourced from ~/.tmux.conf, idempotent) -------
 line="source-file $REPO/tmux.conf"

@@ -9,6 +9,9 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 cs_reconcile
 [ "${1:-}" = "--reconcile-only" ] && exit 0
+if [ "${1:-}" = "--prune" ]; then
+  cs_prune "${2:-50}"; echo "pruned closed history (kept newest ${2:-50})"; exit 0
+fi
 
 reg="$(cs_registry)"
 now="$(date +%s)"

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# claude-rename [-t WINDOW_ID] [NEWNAME] — rename the current (or targeted)
+# instance and update its registry row. With no NEWNAME, prompts for one.
+# Bound to the menu/key, which passes the active window id.
+set -eo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
+target=""
+while getopts ":t:" o; do case "$o" in t) target="$OPTARG" ;; esac; done
+shift $((OPTIND - 1))
+new="${1:-}"
+
+# Default to the current window when run inside tmux.
+[ -n "$target" ] || target="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
+[ -n "$target" ] || { echo "claude-rename: no target window (run inside tmux or pass -t)" >&2; exit 1; }
+
+if [ -z "$new" ]; then printf 'new name: '; read -r new || true; fi
+[ -n "$new" ] || { echo "cancelled."; exit 0; }
+
+cs_set_name "$target" "$new"
+echo "renamed instance to '$new'"
