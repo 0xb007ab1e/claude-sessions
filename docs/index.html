@@ -40,7 +40,7 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-shell"><code>claude-shell</code></a></td><td>Open an interactive shell window (for commands Claude can't run), in the current dir.</td></tr>
   <tr><td><a href="../completions/claude-sessions.bash"><code>completions/claude-sessions.bash</code></a></td><td>Bash completion (sourced from <code>~/.bashrc</code>).</td></tr>
   <tr><td><a href="../tests/lib.bats"><code>tests/lib.bats</code></a></td><td>Unit tests for <code>lib.sh</code> (run with <code>bats tests/</code>).</td></tr>
-  <tr><td><a href="../tests/integration.sh"><code>tests/integration.sh</code></a></td><td>End-to-end test of the fzf directory picker (tmux send-keys; private socket; skips without tmux/fzf).</td></tr>
+  <tr><td><a href="../tests/integration.sh"><code>tests/integration.sh</code></a></td><td>End-to-end tests: fzf picker (send-keys in a pane) + popup exec (display-popup); private socket; skips without tmux/fzf.</td></tr>
   <tr><td><a href="../claude-session"><code>claude-session</code></a></td><td>General launcher: build a named session, one Claude per window (resume modes, <code>-a</code>).</td></tr>
   <tr><td><a href="../lib.sh"><code>lib.sh</code></a></td><td>Shared helpers: config, naming schemes, color palette, the instance registry.</td></tr>
   <tr><td><a href="../config.example"><code>config.example</code></a></td><td>Default config (<code>name_scheme</code>, <code>auto_name</code>).</td></tr>
@@ -390,9 +390,12 @@ bashcompinit</code> first). Unit tests for <code>lib.sh</code> live in
 isolated <code>HOME</code>/state and a non-existent session, so no real tmux
 server is touched). An end-to-end test of the interactive picker lives in
 <code>tests/integration.sh</code> — run <code>bash tests/integration.sh</code>;
-it drives the real fzf picker via <code>tmux send-keys</code> in a pane on a
-<strong>private tmux socket</strong> (your real server is never touched) and
-asserts a window opens in the picked directory, skipping cleanly if
+it runs two end-to-end checks on a <strong>private tmux socket</strong> (your
+real server is never touched): a <em>pane picker</em> check that drives the real
+fzf picker via <code>tmux send-keys</code> and asserts a window opens in the
+picked directory, and a best-effort <em>popup exec</em> check that attaches a
+headless client and runs <code>claude-new</code> through <code>display-popup</code>
+(the container <code>prefix+D</code> uses). Skips cleanly if
 <code>tmux</code>/<code>fzf</code> are absent.</p>
 </body>
 </html>
