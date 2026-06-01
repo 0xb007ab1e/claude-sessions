@@ -90,6 +90,10 @@ directory by default. To pick one, use **New in dir…** (`prefix + D`) or
 `claude-new -c <dir>` / `claude-new -D` (prompts). **Reopen closed** also prompts
 for the directory (prefilled with the saved one) so you can override it.
 
+The directory prompt has **Tab path-completion**, and upgrades to a live **fzf
+typeahead picker** (recent dirs + your `$HOME` tree) if `fzf` is installed
+(`sudo apt install fzf`; `fd` makes it faster) — handy on a phone.
+
 ### Tab-completion & tests
 
 The installer sources `completions/claude-sessions.bash` from `~/.bashrc`

@@ -38,8 +38,8 @@ sel_row="$(printf '%s\n' "${rows[@]}" | awk -F'\t' -v n="$choice" '$1==n{print; 
 IFS=$'\t' read -r _ dir transcript <<<"$sel_row"
 dir="${dir:-$HOME}"
 
-# Offer to change the directory (Enter keeps the saved one; edit to override).
-read -e -i "$dir" -r -p "reopen in directory: " _d 2>/dev/null && dir="${_d:-$dir}"
+# Offer to change the directory (completion/typeahead; keep the saved one or override).
+dir="$(cs_pick_dir "$dir")"
 dir="${dir/#\~/$HOME}"
 [ -d "$dir" ] || { echo "no such directory: $dir"; exit 1; }
 

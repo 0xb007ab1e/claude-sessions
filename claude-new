@@ -34,9 +34,9 @@ if [ -z "$DIR" ]; then
 fi
 DIR="${DIR/#\~/$HOME}"
 
-# -D: let the user edit the directory (prefilled, editable). Works in a popup.
+# -D: pick the directory with completion/typeahead (prefilled). Works in a popup.
 if [ "$ASKDIR" = 1 ]; then
-  read -e -i "$DIR" -r -p "directory: " _d && DIR="${_d:-$DIR}"
+  DIR="$(cs_pick_dir "$DIR")"
   DIR="${DIR/#\~/$HOME}"
 fi
 [ -d "$DIR" ] || { echo "claude-new: no such directory: $DIR" >&2; exit 1; }

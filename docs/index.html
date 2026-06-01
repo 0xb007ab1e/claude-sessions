@@ -88,6 +88,14 @@ id, linked best-effort after launch, so a closed instance can be reopened on the
 file; echoes <code>default</code> if absent/empty.</p></div>
 <div class="sym"><h3 id="cs-scheme"><code>cs_scheme(arg)</code></h3>
 <p>Resolve the naming scheme by the precedence above.</p></div>
+<div class="sym"><h3 id="cs-pickdir"><code>cs_pick_dir(default)</code></h3>
+<p>Prompt for a directory and echo the choice. With <code>fzf</code> installed:
+a live <strong>typeahead</strong> picker over recently-used dirs (registry) plus
+the tree under <code>$HOME</code> (streamed via <code>fd</code>/<code>find</code>,
+so matches appear as they're found); typing a path not in the list and pressing
+Enter uses what you typed. Without fzf: <code>read -e</code> readline editing
+with <strong>Tab</strong> filename completion, prefilled with <code>default</code>.
+Used by <code>claude-new -D</code> and <code>claude-restore</code>.</p></div>
 <div class="sym"><h3 id="cs-color"><code>cs_color_idx(i) · cs_color_hash(str)</code></h3>
 <p>Pick a palette color: by index (stable, wraps) or by hashing a string
 (stable per name).</p></div>
@@ -134,9 +142,11 @@ its registry row. Prompts for the name if none is given. Bound to the menu
 session's active window, so the client follows — works from a menu/key too).
 The directory defaults to the <strong>current window's</strong>
 <code>#{pane_current_path}</code> (not the server's home); <code>-c DIR</code>
-sets it explicitly and <code>-D</code> prompts for it (editable, prefilled —
-used by the menu's "New in dir…"). <code>-i ID</code> resumes an <em>exact</em>
-conversation. Resolves the Claude binary via <code>$CJ_CLAUDE</code>/PATH.</p></div>
+sets it explicitly and <code>-D</code> prompts for it via
+<a href="#cs-pickdir"><code>cs_pick_dir</code></a> (Tab completion, or fzf
+typeahead if installed — used by the menu's "New in dir…"). <code>-i ID</code>
+resumes an <em>exact</em> conversation. Resolves the Claude binary via
+<code>$CJ_CLAUDE</code>/PATH.</p></div>
 <div class="sym"><h3 id="cmd-restore"><code>claude-restore</code></h3>
 <p>Reconcile, list closed instances (most-recent first, de-duped by name), let
 you pick one (fzf if present, else a numbered prompt), and reopen it in its

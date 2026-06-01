@@ -37,6 +37,39 @@ cs_scheme() {
   cs_config_get name_scheme nato
 }
 
+# Prompt for a directory with completion/typeahead, echoing the chosen path.
+# With fzf: a live typeahead picker over recently-used dirs (registry) + the
+# directory tree under $HOME (streamed, so results appear as they're found);
+# typing a path not in the list and pressing Enter uses what you typed.
+# Without fzf: readline editing with TAB filename completion (prefilled).
+# cs_pick_dir [default]
+cs_pick_dir() {
+  local def="${1:-$PWD}"
+  if command -v fzf >/dev/null 2>&1; then
+    local lister out sel q
+    if command -v fd >/dev/null 2>&1;     then lister='fd -td -d4 -H -E .git -E node_modules . "$HOME"'
+    elif command -v fdfind >/dev/null 2>&1; then lister='fdfind -td -d4 -H -E .git -E node_modules . "$HOME"'
+    else lister='find "$HOME" -maxdepth 4 -type d -not -path "*/.*" -not -path "*/node_modules/*"'; fi
+    out="$( { printf '%s\n' "$def"
+              [ -f "$(cs_registry)" ] && awk -F'\t' 'NF{print $5}' "$(cs_registry)"
+              eval "$lister" 2>/dev/null
+            } | awk 'NF && !seen[$0]++' \
+            | fzf --print-query --query "$def" --prompt 'directory> ' \
+                  --height 90% --reverse --no-multi 2>/dev/null )"
+    sel="$(printf '%s\n' "$out" | sed -n '2p')"   # chosen list item (if any)
+    q="$(printf '%s\n'  "$out" | sed -n '1p')"     # what was typed
+    printf '%s' "${sel:-${q:-$def}}"
+    return
+  fi
+  # No fzf: readline editing + TAB completion (best-effort nicer settings).
+  local _d
+  bind 'set show-all-if-ambiguous on'        2>/dev/null || true
+  bind 'set completion-ignore-case on'       2>/dev/null || true
+  bind 'set mark-directories on'             2>/dev/null || true
+  read -e -i "$def" -r -p "directory (Tab completes): " _d || _d="$def"
+  printf '%s' "${_d:-$def}"
+}
+
 # --- palettes (256-color codes shared by tmux `colourN` and ANSI 38;5;N) -----
 CS_COLORS=(39 208 46 201 226 51 213 118 220 165 45 196 82 99 214 87)
 CS_NATO=(alpha bravo charlie delta echo foxtrot golf hotel india juliet
