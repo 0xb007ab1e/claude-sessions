@@ -32,7 +32,7 @@ STATE="${XDG_STATE_HOME:-$HOME/.local/state}/claude-sessions"
 mkdir -p "$BIN" "$APPS" "$UNITDIR" "$CSCONF" "$STATE"
 
 # 1. CLI shortcuts on PATH ----------------------------------------------------
-for f in cj claude-session claude-ls claude-new claude-restore claude-popup; do
+for f in cj claude-session claude-ls claude-new claude-restore claude-popup claude-notify; do
   ln -sf "$REPO/$f" "$BIN/$f"
   echo "linked   $BIN/$f"
 done

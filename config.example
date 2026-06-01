@@ -9,3 +9,16 @@ name_scheme = nato
 
 # Auto-name every instance started via `cj` even without the -a flag.
 auto_name = false
+
+# Attention notifications when an instance rings the bell (Claude finished /
+# needs input — enable the terminal bell in Claude for this to fire).
+#   notify = desktop | ntfy | pushover | none
+notify = desktop
+# For phone push over Tailscale via ntfy (https://ntfy.sh or self-hosted):
+# notify      = ntfy
+# ntfy_server = https://ntfy.sh
+# ntfy_topic  = my-claude-alerts
+# For Pushover:
+# notify         = pushover
+# pushover_token = <app token>
+# pushover_user  = <user key>

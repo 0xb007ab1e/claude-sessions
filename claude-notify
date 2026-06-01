@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# claude-notify — send an "instance needs attention" notification when a Claude
+# window rings the terminal bell (Claude Code rings it on completion / when it
+# needs input, if you enable the bell in Claude). Wired to tmux's alert-bell
+# hook; also usable manually. Backend is chosen in config so it works on a
+# desktop or pushes to your phone over Tailscale.
+#
+#   claude-notify [event] [window-name] [session]
+#
+# Config (~/.config/claude-sessions/config):
+#   notify          = desktop | ntfy | pushover | none   (default: desktop)
+#   ntfy_server     = https://ntfy.sh                    (or your self-hosted)
+#   ntfy_topic      = <topic>                            (required for ntfy)
+#   pushover_token  = <app token>                        (required for pushover)
+#   pushover_user   = <user key>                         (required for pushover)
+set -eo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
+event="${1:-bell}"
+win="${2:-an instance}"
+sess="${3:-$(cs_session)}"
+backend="$(cs_config_get notify desktop)"
+title="Claude: ${win} needs attention"
+body="session ${sess} · ${event}"
+
+case "$backend" in
+  none) : ;;
+  desktop)
+    command -v notify-send >/dev/null 2>&1 \
+      && notify-send -a claude-sessions -u normal "$title" "$body" || true ;;
+  ntfy)
+    topic="$(cs_config_get ntfy_topic '')"
+    server="$(cs_config_get ntfy_server https://ntfy.sh)"
+    if [ -n "$topic" ] && command -v curl >/dev/null 2>&1; then
+      curl -fsS -H "Title: $title" -d "$body" "$server/$topic" >/dev/null 2>&1 || true
+    fi ;;
+  pushover)
+    tok="$(cs_config_get pushover_token '')"; usr="$(cs_config_get pushover_user '')"
+    if [ -n "$tok" ] && [ -n "$usr" ] && command -v curl >/dev/null 2>&1; then
+      curl -fsS -F "token=$tok" -F "user=$usr" -F "title=$title" -F "message=$body" \
+        https://api.pushover.net/1/messages.json >/dev/null 2>&1 || true
+    fi ;;
+  *) echo "claude-notify: unknown backend '$backend'" >&2 ;;
+esac
