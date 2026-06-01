@@ -1,15 +1,12 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"></head><body>
 <div class="wrap">
-  <div class="popup"><div class="pad">
-    <div class="h">claude instances — session: claude</div>
-    <div>&nbsp;</div>
-    <div class="bold">active</div>
-    <div><span class="alpha">●</span> alpha    ~/_src/_dev/mail-bot      up 2h14m <span class="dim">[329f83fa]</span></div>
-    <div><span class="bravo">●</span> bravo    ~/_src/_dev/The-Lab       up 47m   <span class="dim">[7eef78a5]</span></div>
-    <div><span class="charlie">●</span> charlie  ~/_src/_dev/planner-mcp   up 12m</div>
-    <div>&nbsp;</div>
-    <div class="bold">closed</div>
-    <div><span class="delta dim">○</span> delta    ~/_src/_dev/web-app       closed 1h ago <span class="dim">[db9666e3]</span></div>
+  <div class="popup"><div class="fzf">
+    <div class="prompt">instance&gt; <span class="cursor">&nbsp;</span></div>
+    <div class="count">Enter: switch (active) / reopen (closed) · type to filter</div>
+    <div class="item cur"><span class="alpha">●</span> alpha    ~/_src/_dev/mail-bot      up 2h14m</div>
+    <div class="item"><span class="bravo">●</span> bravo    ~/_src/_dev/The-Lab       up 47m</div>
+    <div class="item"><span class="charlie">●</span> charlie  ~/_src/_dev/planner-mcp   up 12m</div>
+    <div class="item"><span class="delta">○</span> delta    ~/_src/_dev/web-app       closed 1h ago</div>
   </div></div>
-  <div class="caption">List instances (prefix L / menu → l) — ● active, ○ closed</div>
+  <div class="caption">List instances (prefix L / menu l) — scrollable &amp; selectable; Enter switches an active instance or reopens a closed one (resuming it)</div>
 </div></body></html>
