@@ -33,6 +33,7 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-new"><code>claude-new</code></a></td><td>Open a new named/colored instance (new / resume / continue).</td></tr>
   <tr><td><a href="../claude-restore"><code>claude-restore</code></a></td><td>Reopen a closed instance from the registry in its old directory.</td></tr>
   <tr><td><a href="../claude-popup"><code>claude-popup</code></a></td><td>Run a view (ls/help) inside a tmux popup, pausing for a key.</td></tr>
+  <tr><td><a href="../claude-pick"><code>claude-pick</code></a></td><td>Interactive scrollable picker — select an instance to switch to it or reopen it.</td></tr>
   <tr><td><a href="../claude-notify"><code>claude-notify</code></a></td><td>Notify (desktop / ntfy / Pushover) when an instance needs attention.</td></tr>
   <tr><td><a href="../claude-snapshot"><code>claude-snapshot</code></a></td><td>Save active instances (name + dir) for restore after reboot.</td></tr>
   <tr><td><a href="../claude-restore-all"><code>claude-restore-all</code></a></td><td>Reopen the last session's instances (boot hook or manual).</td></tr>
@@ -180,6 +181,17 @@ unless config has <code>restore_on_boot = true</code> (so boot-restore is
 opt-in). Also bound to the menu's "Restore last session" (key <code>a</code>).</p>
 <p><strong>Note:</strong> the snapshot is taken on graceful service stop; a hard
 power-loss reboot reuses the previous snapshot (or none).</p></div>
+<div class="sym"><h3 id="cmd-pick"><code>claude-pick</code></h3>
+<p>Interactive picker over all instances (active + closed), bound to the menu's
+"List instances" and <code>prefix+L</code> (in a popup). Scroll/filter with
+<strong>fzf</strong> when present, else a numbered prompt
+(<code>CS_PICK_PLAIN=1</code> forces the latter). Selecting an instance makes it
+a full session: an <strong>active</strong> one switches the client to its window;
+a <strong>closed</strong> one is reopened via <code>claude-new</code> in its
+original directory — resuming the <em>exact</em> conversation
+(<code>--resume &lt;transcript&gt;</code>) when known, else <code>--continue</code>,
+so its memories/context come back. Fields use a <code>\037</code> separator so
+empty fields (e.g. a closed row's window id) parse correctly.</p></div>
 <div class="sym"><h3 id="cmd-popup"><code>claude-popup {ls|help}</code></h3>
 <p>Runs <code>claude-ls</code> or prints the cheat sheet, then waits for Enter —
 so a tmux <code>display-popup</code> binding stays readable. Keeps complex
@@ -210,7 +222,7 @@ interactive attaches). Require tmux ≥ 3.2.</p>
 <table>
   <tr><th>Key</th><th>Action</th></tr>
   <tr><td><code>prefix + C</code></td><td>open the action <strong>menu</strong> (all actions below)</td></tr>
-  <tr><td><code>prefix + L</code></td><td>list instances (popup)</td></tr>
+  <tr><td><code>prefix + L</code></td><td>interactive instance picker — switch live / reopen closed (popup)</td></tr>
   <tr><td><code>prefix + N</code></td><td>new instance (in the current window's dir)</td></tr>
   <tr><td><code>prefix + D</code></td><td>new instance in a directory you type (menu: "New in dir…")</td></tr>
   <tr><td><code>prefix + E</code></td><td>rename the current instance</td></tr>

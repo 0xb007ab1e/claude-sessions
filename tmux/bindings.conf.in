@@ -7,7 +7,7 @@
 # ── Action menu (prefix + C) ────────────────────────────────────────────────
 bind C display-menu -T "#[align=centre,bold] claude instances " \
   "Switch instance"      s "choose-tree -Zw" \
-  "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-popup ls'" \
+  "List instances"       l "display-popup -E -w 86% -h 84% '@BIN@/claude-pick'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "New in dir…"          d "display-popup -E -w 80% -h 70% '@BIN@/claude-new -D'" \
   "Rename instance"      e "display-popup -E -w 60% -h 28% '@BIN@/claude-rename'" \
@@ -19,7 +19,7 @@ bind C display-menu -T "#[align=centre,bold] claude instances " \
   "Cheat sheet"          ? "display-popup -E -w 78% -h 82% '@BIN@/claude-popup help'"
 
 # ── Direct keys ─────────────────────────────────────────────────────────────
-bind L display-popup -E -w 84% -h 72% "@BIN@/claude-popup ls"
+bind L display-popup -E -w 86% -h 84% "@BIN@/claude-pick"
 bind N run-shell "@BIN@/claude-new"
 bind D display-popup -E -w 80% -h 70% "@BIN@/claude-new -D"
 bind B run-shell "@BIN@/claude-shell"
@@ -34,7 +34,7 @@ bind ? display-popup -E -w 78% -h 82% "@BIN@/claude-popup help"
 # same menu as prefix+C; Alt+arrows switch instances without leaving Claude.
 bind -n F9 display-menu -T "#[align=centre,bold] claude instances " \
   "Switch instance"      s "choose-tree -Zw" \
-  "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-popup ls'" \
+  "List instances"       l "display-popup -E -w 86% -h 84% '@BIN@/claude-pick'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "New in dir…"          d "display-popup -E -w 80% -h 70% '@BIN@/claude-new -D'" \
   "Rename instance"      e "display-popup -E -w 60% -h 28% '@BIN@/claude-rename'" \
@@ -49,7 +49,7 @@ bind -n F9 display-menu -T "#[align=centre,bold] claude instances " \
 # on the LEFT of the status bar to open the same menu.
 bind -n MouseDown1StatusLeft display-menu -T "#[align=centre,bold] claude instances " \
   "Switch instance"      s "choose-tree -Zw" \
-  "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-popup ls'" \
+  "List instances"       l "display-popup -E -w 86% -h 84% '@BIN@/claude-pick'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "New in dir…"          d "display-popup -E -w 80% -h 70% '@BIN@/claude-new -D'" \
   "Rename instance"      e "display-popup -E -w 60% -h 28% '@BIN@/claude-rename'" \

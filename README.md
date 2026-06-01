@@ -61,7 +61,7 @@ instances flip to *closed* automatically when their window goes away.
 | Key | Action |
 |---|---|
 | `prefix + C` | **menu** of all actions below |
-| `prefix + L` | list instances |
+| `prefix + L` | open the interactive instance picker (switch / reopen) |
 | `prefix + N` | new instance (in the current window's directory) |
 | `prefix + D` | new instance in a directory you type ("New in dir…") |
 | `prefix + E` | rename the current instance |

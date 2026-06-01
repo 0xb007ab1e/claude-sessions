@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# claude-pick — interactive, scrollable picker over all instances (active +
+# closed). Select one and it becomes a full, operable session:
+#   * active  -> switch the client to that live window
+#   * closed  -> reopen it (claude --resume <transcript>, or --continue) in its
+#                original directory, so its conversation + memories come back
+#
+# Uses fzf when available (scroll, type-to-filter, Enter to open); otherwise a
+# numbered prompt (also forced by CS_PICK_PLAIN=1). Designed to run inside a
+# tmux popup (the menu's "List instances" / prefix+L), but works standalone.
+#
+# Fields are separated by US (\037), NOT tab: a non-whitespace delimiter lets
+# `read` preserve EMPTY fields (e.g. a closed row's empty window id, or an
+# active row's empty transcript) instead of collapsing consecutive delimiters.
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+
+cs_reconcile
+reg="$(cs_registry)"
+S="$(cs_session)"
+US=$'\037'
+
+# One row per instance: <display>US<kind>US<window_id>US<cwd>US<transcript>US<name>
+#   kind A = active, C = closed. <display> is ANSI-colored.
+build() {
+  [ -f "$reg" ] || return 0
+  awk -F'\t' -v now="$(date +%s)" '
+    function dur(s,  d){d=now-s; if(d<60)return d"s"; if(d<3600)return int(d/60)"m";
+      if(d<86400)return int(d/3600)"h"; return int(d/86400)"d"}
+    function ago(s,  d){if(s=="")return "?"; d=now-s; if(d<3600)return int(d/60)"m ago";
+      if(d<86400)return int(d/3600)"h ago"; return int(d/86400)"d ago"}
+    BEGIN{ US="\037" }
+    $7=="active"{
+      printf "\033[38;5;%sm\xe2\x97\x8f\033[0m %-16s %-30s \033[2mup %s\033[0m%sA%s%s%s%s%s%s%s%s\n",
+        $2,$1,$5,dur($6), US,US,$4,US,$5,US,$9,US,$1; next
+    }
+    $7=="closed"{
+      if (!($1 in e) || $8+0 > e[$1]) {                       # keep most-recent close per name
+        e[$1]=$8+0
+        line[$1]=sprintf("\033[38;5;%sm\xe2\x97\x8b\033[0m %-16s %-30s \033[2mclosed %s\033[0m%sC%s%s%s%s%s%s%s",
+          $2,$1,$5,ago($8), US,US,US,$5,US,$9,US,$1)
+      }
+    }
+    END{
+      n=0; for (k in e) ord[++n]=k
+      for(i=1;i<=n;i++)for(j=i+1;j<=n;j++) if(e[ord[j]]>e[ord[i]]){t=ord[i];ord[i]=ord[j];ord[j]=t}
+      for(i=1;i<=n;i++) print line[ord[i]]
+    }
+  ' "$reg"
+}
+
+sel=""
+if command -v fzf >/dev/null 2>&1 && [ -z "${CS_PICK_PLAIN:-}" ]; then
+  sel="$(build | fzf --ansi --delimiter="$US" --with-nth=1 --reverse --height=100% \
+          --prompt='instance ▷ ' \
+          --header='↑↓ move · type to filter · Enter open · Esc cancel' || true)"
+else
+  mapfile -t rows < <(build)
+  [ "${#rows[@]}" -gt 0 ] || { echo "no instances yet."; exit 0; }
+  echo "instances — pick one to open:"
+  i=1; for r in "${rows[@]}"; do printf "  %2d) %b\n" "$i" "${r%%"$US"*}"; i=$((i+1)); done
+  printf "number (Enter to cancel): "; read -r n
+  [ -n "${n:-}" ] || { echo "cancelled."; exit 0; }
+  sel="${rows[$((n-1))]:-}"
+fi
+[ -n "$sel" ] || { echo "cancelled."; exit 0; }
+
+IFS="$US" read -r _disp kind wid cwd transcript name <<<"$sel"
+case "$kind" in
+  A) tmux select-window -t "$S:$wid" 2>/dev/null && echo "switched to '$name'" ;;
+  C) if [ -n "$transcript" ]; then
+       exec "$HERE/claude-new" -i "$transcript" -c "${cwd:-$HOME}" -n "$name"
+     else
+       exec "$HERE/claude-new" -m continue -c "${cwd:-$HOME}" -n "$name"
+     fi ;;
+  *) echo "nothing selected." ;;
+esac
