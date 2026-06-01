@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# claude-hook EVENT — Claude Code hook dispatcher (installed into
+# ~/.claude/settings.json by install.sh for SessionStart / UserPromptSubmit /
+# Stop / Notification / SessionEnd). Maps the firing Claude instance to its tmux
+# window via $TMUX_PANE, records a per-instance status, and notifies when it
+# needs you. No-ops for Claude instances not running inside the session.
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+
+event="${1:-}"
+payload="$(cat 2>/dev/null || true)"     # always drain stdin (the hook JSON)
+
+# Only act for instances inside a tmux window (our session). $TMUX_PANE is
+# inherited from the Claude process; absent => not one of our instances.
+[ -n "${TMUX_PANE:-}" ] || exit 0
+wid="$(tmux display-message -p -t "$TMUX_PANE" '#{window_id}' 2>/dev/null || true)"
+[ -n "$wid" ] || exit 0
+winname() { tmux display-message -p -t "$TMUX_PANE" '#W' 2>/dev/null || echo instance; }
+
+case "$event" in
+  UserPromptSubmit) cs_set_status "$wid" working ;;
+  SessionStart)     cs_set_status "$wid" idle ;;
+  Stop)
+    cs_set_status "$wid" idle
+    [ "$(cs_config_get notify_on_finish false)" = "true" ] && "$HERE/claude-notify" finished "$(winname)" >/dev/null 2>&1 || true ;;
+  Notification)
+    ntype="$(printf '%s' "$payload" | grep -o '"notification_type"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')"
+    if [ "$ntype" = permission_prompt ]; then
+      cs_set_status "$wid" needs-approval
+      "$HERE/claude-notify" approval "$(winname)" >/dev/null 2>&1 || true
+    fi ;;
+  SessionEnd)       cs_clear_status "$wid" ;;
+esac
+exit 0
