@@ -8,6 +8,7 @@
 bind C display-menu -T "#[align=centre,bold] claude instances " \
   "Switch instance"      s "choose-tree -Zw" \
   "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-pick'" \
+  "Usage / cost"         u "display-popup -E -w 78% -h 60% '@BIN@/claude-popup cost'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "New in dir…"          d "display-popup -E -w 80% -h 70% '@BIN@/claude-new -D'" \
   "Change dir"           c "display-popup -E -w 80% -h 70% '@BIN@/claude-cd'" \
@@ -21,6 +22,7 @@ bind C display-menu -T "#[align=centre,bold] claude instances " \
 
 # ── Direct keys ─────────────────────────────────────────────────────────────
 bind L display-popup -E -w 84% -h 72% "@BIN@/claude-pick"
+bind U display-popup -E -w 78% -h 60% "@BIN@/claude-popup cost"
 bind N run-shell "@BIN@/claude-new"
 bind D display-popup -E -w 80% -h 70% "@BIN@/claude-new -D"
 bind G display-popup -E -w 80% -h 70% "@BIN@/claude-cd"
@@ -37,6 +39,7 @@ bind ? display-popup -E -w 78% -h 82% "@BIN@/claude-popup help"
 bind -n F9 display-menu -T "#[align=centre,bold] claude instances " \
   "Switch instance"      s "choose-tree -Zw" \
   "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-pick'" \
+  "Usage / cost"         u "display-popup -E -w 78% -h 60% '@BIN@/claude-popup cost'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "New in dir…"          d "display-popup -E -w 80% -h 70% '@BIN@/claude-new -D'" \
   "Change dir"           c "display-popup -E -w 80% -h 70% '@BIN@/claude-cd'" \
@@ -53,6 +56,7 @@ bind -n F9 display-menu -T "#[align=centre,bold] claude instances " \
 bind -n MouseDown1StatusLeft display-menu -T "#[align=centre,bold] claude instances " \
   "Switch instance"      s "choose-tree -Zw" \
   "List instances"       l "display-popup -E -w 84% -h 72% '@BIN@/claude-pick'" \
+  "Usage / cost"         u "display-popup -E -w 78% -h 60% '@BIN@/claude-popup cost'" \
   "New instance"         n "run-shell '@BIN@/claude-new'" \
   "New in dir…"          d "display-popup -E -w 80% -h 70% '@BIN@/claude-new -D'" \
   "Change dir"           c "display-popup -E -w 80% -h 70% '@BIN@/claude-cd'" \
