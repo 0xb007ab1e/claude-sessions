@@ -37,6 +37,7 @@ per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
   <tr><td><a href="../claude-snapshot"><code>claude-snapshot</code></a></td><td>Save active instances (name + dir) for restore after reboot.</td></tr>
   <tr><td><a href="../claude-restore-all"><code>claude-restore-all</code></a></td><td>Reopen the last session's instances (boot hook or manual).</td></tr>
   <tr><td><a href="../claude-rename"><code>claude-rename</code></a></td><td>Rename an instance (window + registry).</td></tr>
+  <tr><td><a href="../claude-shell"><code>claude-shell</code></a></td><td>Open an interactive shell window (for commands Claude can't run), in the current dir.</td></tr>
   <tr><td><a href="../completions/claude-sessions.bash"><code>completions/claude-sessions.bash</code></a></td><td>Bash completion (sourced from <code>~/.bashrc</code>).</td></tr>
   <tr><td><a href="../tests/lib.bats"><code>tests/lib.bats</code></a></td><td>Unit tests for <code>lib.sh</code> (run with <code>bats tests/</code>).</td></tr>
   <tr><td><a href="../claude-session"><code>claude-session</code></a></td><td>General launcher: build a named session, one Claude per window (resume modes, <code>-a</code>).</td></tr>
@@ -134,6 +135,14 @@ drop older closed history.</p></div>
 name dots, directory, and uptime/closed-ago. <code>--reconcile-only</code> just
 updates the registry (used by the tmux close hook); <code>--prune [N]</code>
 trims closed history to the newest N (default 50).</p></div>
+<div class="sym"><h3 id="cmd-shell"><code>claude-shell [-c DIR] [-D] [-n NAME]</code></h3>
+<p>Open a window running an interactive login shell (no Claude) for things Claude
+can't do itself — <code>sudo</code>, interactive logins/TUIs, etc. Opens in the
+current window's directory by default (<code>-c</code> sets it, <code>-D</code>
+prompts via <a href="#cs-pickdir"><code>cs_pick_dir</code></a>), names it
+<code>sh:&lt;dir&gt;</code> in grey to stand apart from colored instances, and
+switches to it. Not recorded in the instance registry. Menu: "Shell here"
+(<code>prefix+B</code>).</p></div>
 <div class="sym"><h3 id="cmd-rename"><code>claude-rename [-t WINDOW_ID] [NEWNAME]</code></h3>
 <p>Rename the current (or targeted) instance, updating both the tmux window and
 its registry row. Prompts for the name if none is given. Bound to the menu
@@ -200,6 +209,7 @@ interactive attaches). Require tmux ≥ 3.2.</p>
   <tr><td><code>prefix + N</code></td><td>new instance (in the current window's dir)</td></tr>
   <tr><td><code>prefix + D</code></td><td>new instance in a directory you type (menu: "New in dir…")</td></tr>
   <tr><td><code>prefix + E</code></td><td>rename the current instance</td></tr>
+  <tr><td><code>prefix + B</code></td><td>open an interactive shell in the current dir (menu: "Shell here")</td></tr>
   <tr><td><code>prefix + R</code></td><td>resume a past conversation (<code>claude --resume</code>)</td></tr>
   <tr><td><code>prefix + O</code></td><td>reopen a closed instance</td></tr>
   <tr><td><code>prefix + X</code></td><td>stop the current instance (confirm)</td></tr>
