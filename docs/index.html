@@ -338,7 +338,11 @@ with a 🔔 <strong>bell tag</strong> (ntfy <code>Priority: high</code> /
 degrade to a safe no-op.</p></div>
 
 <h2>Key bindings &amp; cheat sheet (prefix is Ctrl-b)</h2>
-<p>The instance menu (<code>prefix C</code> / <code>F9</code> / tap the status bar):</p>
+<p>The instance menu (<code>prefix C</code> / <code>F9</code> / tap the session name) is
+<strong>grouped with drill-down submenus</strong> (fluent style): <em>▸ Instances</em>,
+<em>▸ Conversations</em>, <em>▸ Shell</em>, <em>▸ Model / effort</em>, <em>▸ Help</em>.
+The flat direct keys below still work without drilling in. <em>(Screenshots show the
+earlier flat menu — pending a refresh.)</em></p>
 <p><img src="screenshots/instances-menu.png" alt="claude-sessions instance menu" style="max-width:340px;border-radius:6px;border:1px solid #d7e3fb"></p>
 <p>More: <a href="screenshots/">screenshots of each menu action + the status bar</a>
 (<code>docs/screenshots/</code>; rendered mockups, regenerated from the <code>.html</code> sources).</p>
@@ -348,7 +352,7 @@ sourced by <code>tmux.conf</code> (so they load in both the boot session and
 interactive attaches). Require tmux ≥ 3.2.</p>
 <table>
   <tr><th>Key</th><th>Action</th></tr>
-  <tr><td><code>prefix + C</code></td><td>open the action <strong>menu</strong> (all actions below)</td></tr>
+  <tr><td><code>prefix + C</code></td><td>open the <strong>grouped</strong> action menu (drill into Instances / Conversations / Shell / Model / Help)</td></tr>
   <tr><td><code>prefix + L</code></td><td>list instances — selectable picker (Enter: switch active / reopen closed)</td></tr>
   <tr><td><code>prefix + N</code></td><td>new instance (in the current window's dir)</td></tr>
   <tr><td><code>prefix + D</code></td><td>new instance in a directory you type (menu: "New in dir…")</td></tr>
