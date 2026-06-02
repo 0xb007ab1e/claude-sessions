@@ -145,3 +145,12 @@ setup() {
   [ "$(cs_dir_rel /a/b /a/b/c)"   = "c" ]
   [ "$(cs_dir_rel /a/b /a/b/c/d)" = "c/d" ]
 }
+
+@test "cs_pick_start prefers PWD under root, else root" {
+  mkdir -p "$BATS_TEST_TMPDIR/r/sub"
+  local r; r="$(cd "$BATS_TEST_TMPDIR/r" && pwd -P)"
+  cd "$r/sub"; run cs_pick_start "$r"
+  [ "$status" -eq 0 ]; [ "$output" = "$r/sub" ]      # PWD under root -> PWD
+  cd /;        run cs_pick_start "$r"
+  [ "$status" -eq 1 ]; [ "$output" = "$r" ]          # PWD outside  -> root (warn path)
+}
