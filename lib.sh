@@ -16,7 +16,7 @@
 # registry (legacy v1 TSV at registry.tsv, or JSONL with v<current) is backed up,
 # upgraded record-by-record, and validated against the backup, all under flock.
 
-CS_SCHEMA_VERSION=2
+CS_SCHEMA_VERSION=3
 
 # --- locations ---------------------------------------------------------------
 cs_session()          { echo "${CLAUDE_TMUX_SESSION:-claude}"; }
@@ -176,7 +176,8 @@ cs_rows() {
   jq -r 'select(type=="object")
          | [ .name, .color, .session, .window_id, .cwd, (.started|tostring),
              .status, (.ended|if .==null then "" else tostring end),
-             (.transcript//""), (.model//""), (.effort//"") ] | @tsv' \
+             (.transcript//""), (.model//""), (.effort//""),
+             (.kind//"instance"), (.parent//"") ] | @tsv' \
      "$reg" 2>/dev/null
 }
 
@@ -229,14 +230,17 @@ cs_migrate() {
           ended:($ended|if .=="" then null else (tonumber? // null) end),
           transcript:($transcript|select(.!="")//null),
           model:($model|select(.!="")//null),
-          effort:($effort|select(.!="")//null)}'
+          effort:($effort|select(.!="")//null),
+          kind:"instance",parent:null}'        # legacy rows are all instances
     done < "$src" > "$tmp"
   else
-    # JSONL upgrade: stamp current version, ensure all fields exist.
+    # JSONL upgrade: stamp current version, ensure all fields exist (v2 records
+    # gain kind=instance/parent=null; v3 records keep theirs).
     jq -c --argjson v "$CS_SCHEMA_VERSION" \
       '{v:$v, name, color, session, window_id, cwd, started, status,
         ended:(.ended//null), transcript:(.transcript//null),
-        model:(.model//null), effort:(.effort//null)}' "$src" > "$tmp"
+        model:(.model//null), effort:(.effort//null),
+        kind:(.kind//"instance"), parent:(.parent//null)}' "$src" > "$tmp"
   fi
 
   # Validate: every record is at the current version, and the (name|window_id|
@@ -342,11 +346,14 @@ cs_record_active() {
       --arg name "$1" --arg color "$2" --arg session "$(cs_session)" --arg wid "$3" \
       --arg cwd "$4" --argjson started "$(date +%s)" \
       --arg transcript "${5:-}" --arg model "${6:-}" --arg effort "${7:-}" \
+      --arg kind "${8:-instance}" --arg parent "${9:-}" \
       '{v:$v,name:$name,color:$color,session:$session,window_id:$wid,cwd:$cwd,
         started:$started,status:"active",ended:null,
         transcript:($transcript|select(.!="")//null),
         model:($model|select(.!="")//null),
-        effort:($effort|select(.!="")//null)}'
+        effort:($effort|select(.!="")//null),
+        kind:($kind|select(.!="")//"instance"),
+        parent:($parent|select(.!="")//null)}'
   } > "$tmp" && mv "$tmp" "$reg"
 }
 

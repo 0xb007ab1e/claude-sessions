@@ -114,7 +114,7 @@ setup() {
   [ "$(cs_field 11 "$row")" = high ]
 }
 
-@test "cs_open migrates legacy v1 TSV to JSONL v2 (with backup)" {
+@test "cs_open migrates legacy v1 TSV to JSONL (current version, with backup)" {
   mkdir -p "$(cs_state_dir)"
   printf 'a\t39\t%s\t@1\t/tmp/proj one\t1000\tactive\t\t\tsonnet\thigh\n' \
     "$CLAUDE_TMUX_SESSION" > "$(cs_registry_legacy)"
@@ -122,7 +122,28 @@ setup() {
   [ -s "$(cs_registry)" ]                                   # jsonl created
   [ "$(jq -r .v "$(cs_registry)")" = "$CS_SCHEMA_VERSION" ] # at current version
   [ "$(cs_field 5 "$(cs_rows)")" = "/tmp/proj one" ]        # data preserved
+  [ "$(jq -r .kind "$(cs_registry)")" = instance ]          # legacy rows -> instance
   ls "$(cs_state_dir)"/registry.tsv.bak.* >/dev/null 2>&1   # backup made
+}
+
+@test "cs_record_active records kind=shell + parent (ephemeral shell)" {
+  cs_record_active alpha 39 @1 /tmp/a                       # default -> instance
+  cs_record_active sh:a 39 @2 /tmp/a "" "" "" shell @1      # ephemeral shell
+  ish="$(cs_rows | awk -F'\t' '$4=="@2"')"
+  [ "$(cs_field 12 "$ish")" = shell ]
+  [ "$(cs_field 13 "$ish")" = @1 ]
+  inst="$(cs_rows | awk -F'\t' '$4=="@1"')"
+  [ "$(cs_field 12 "$inst")" = instance ]                  # default kind
+}
+
+@test "cs_open migrates v2 JSONL to v3 (adds kind/parent)" {
+  mkdir -p "$(cs_state_dir)"
+  printf '{"v":2,"name":"old","color":"39","session":"%s","window_id":"@1","cwd":"/tmp/o","started":1,"status":"active","ended":null,"transcript":null,"model":null,"effort":null}\n' \
+    "$CLAUDE_TMUX_SESSION" > "$(cs_registry)"
+  cs_open
+  [ "$(jq -r .v "$(cs_registry)")" = "$CS_SCHEMA_VERSION" ]
+  [ "$(jq -r .kind "$(cs_registry)")" = instance ]
+  [ "$(jq -r .parent "$(cs_registry)")" = null ]
 }
 
 @test "cs_config_set updates existing and appends missing keys" {

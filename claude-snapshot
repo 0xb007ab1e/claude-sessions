@@ -8,5 +8,5 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 snap="$(cs_state_dir)/last-session.tsv"
 mkdir -p "$(cs_state_dir)"
-cs_rows | awk -F'\t' -v OFS='\t' '$7=="active"{print $1, $5}' > "$snap"
+cs_rows | awk -F'\t' -v OFS='\t' '$7=="active" && $12!="shell"{print $1, $5}' > "$snap"
 echo "snapshot: $(wc -l < "$snap" 2>/dev/null || echo 0) active instance(s) -> $snap"

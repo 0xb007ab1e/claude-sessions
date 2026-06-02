@@ -39,15 +39,26 @@ if [ -f "$reg" ] && awk -F'\t' '$7=="active"{f=1} END{exit !f}' "$reg"; then
       if(d<86400)return int(d/3600)"h"int((d%3600)/60)"m"; return int(d/86400)"d"}
     function mbadge(m,e){ if(m==""&&e=="")return ""; if(e=="")return " \033[2m{"m"}\033[0m";
       if(m=="")return " \033[2m{@"e"}\033[0m"; return " \033[2m{"m" @"e"}\033[0m" }
-    # Match the status map by FILENAME, not FNR==NR: when no status files exist
-    # the map file is empty, and FNR==NR would then eat the first registry row.
+    function instline(L,  f,id,st,sb){ split(L,f,"\t");
+      id=(f[9]==""?"":" \033[2m["substr(f[9],1,8)"]\033[0m"); st=S[f[4]]; sb="";
+      if(st=="needs-approval") sb="  \033[1;33m⚠ needs approval\033[0m";
+      else if(st=="working")   sb="  \033[36m⚙ working\033[0m";
+      else if(st=="idle")      sb="  \033[2midle\033[0m";
+      return sprintf("  \033[38;5;%sm●\033[0m %-16s %-28s up %s%s%s%s",
+        f[2],f[1],f[5],dur(f[6]),mbadge(f[10],f[11]),sb,id) }
+    # Ephemeral shells render indented under their parent instance (grouped).
+    function shline(L,  f){ split(L,f,"\t");
+      return sprintf("    \033[38;5;%sm\342\224\224\342\224\200\033[0m \033[2m%-14s %-28s up %s\033[0m",
+        f[2],f[1],f[5],dur(f[6])) }
     FILENAME==smapf { S[$1]=$2; next }
-    $7=="active"{ id=($9==""?"":" \033[2m["substr($9,1,8)"]\033[0m");
-      st=S[$4]; sbadge="";
-      if(st=="needs-approval") sbadge="  \033[1;33m⚠ needs approval\033[0m";
-      else if(st=="working")   sbadge="  \033[36m⚙ working\033[0m";
-      else if(st=="idle")      sbadge="  \033[2midle\033[0m";
-      printf "  \033[38;5;%sm●\033[0m %-16s %-28s up %s%s%s%s\n", $2,$1,$5,dur($6),mbadge($10,$11),sbadge,id }
+    $7=="active" && $12!="shell" { ord[++ni]=$0; iswid[$4]=1 }
+    $7=="active" && $12=="shell" { sh[$13]=sh[$13] (sh[$13]?"\036":"") $0; all[++na]=$0 }
+    END {
+      for(i=1;i<=ni;i++){ split(ord[i],f,"\t"); print instline(ord[i]);
+        if(f[4] in sh){ m=split(sh[f[4]],a,"\036"); for(j=1;j<=m;j++) print shline(a[j]) } }
+      for(k=1;k<=na;k++){ split(all[k],f,"\t");
+        if(!(f[13] in iswid)){ if(!orph++) print "  \033[2mdetached shells\033[0m"; print shline(all[k]) } }
+    }
   ' "$smap" "$reg"
   rm -f "$smap"
 else
@@ -55,13 +66,13 @@ else
 fi
 
 printf '\n\033[1mclosed\033[0m\n'
-if [ -f "$reg" ] && awk -F'\t' '$7=="closed"{f=1} END{exit !f}' "$reg"; then
+if [ -f "$reg" ] && awk -F'\t' '$7=="closed" && $12!="shell"{f=1} END{exit !f}' "$reg"; then
   awk -F'\t' -v now="$now" '
     function ago(s,  d){if(s=="")return "?"; d=now-s; if(d<3600)return int(d/60)"m ago";
       if(d<86400)return int(d/3600)"h ago"; return int(d/86400)"d ago"}
     function badge(m,e){ if(m==""&&e=="")return ""; if(e=="")return " \033[2m{"m"}\033[0m";
       if(m=="")return " \033[2m{@"e"}\033[0m"; return " \033[2m{"m" @"e"}\033[0m" }
-    $7=="closed"{ id=($9==""?"":" \033[2m["substr($9,1,8)"]\033[0m");
+    $7=="closed" && $12!="shell"{ id=($9==""?"":" \033[2m["substr($9,1,8)"]\033[0m");   # shells are ephemeral, not listed when closed
       printf "  \033[38;5;%sm○\033[0m %-16s %-30s closed %s%s%s\n", $2,$1,$5,ago($8),badge($10,$11),id }
   ' "$reg" | tail -20
 else
