@@ -46,16 +46,17 @@ opened_in() { $TM list-windows -t "$SESSION" -F '#{pane_current_path}' 2>/dev/nu
 
 rc=0
 
-# ── 1) PANE PICKER ───────────────────────────────────────────────────────────
+# ── 1) PANE PICKER (traversal: open the folder, then "choose THIS folder") ────
 launch="$($TM new-window -t "$SESSION:" -P -F '#{window_id}' "$ENVPREFIX '$REPO/claude-new' -D")"
 sleep 2
-$TM send-keys -t "$launch" C-u
-$TM send-keys -t "$launch" -l 'mail-bot'
+$TM send-keys -t "$launch" -l 'mail-bot'   # filter to the mail-bot/ entry (shown relative to root)
 sleep 1
-$TM send-keys -t "$launch" Enter
+$TM send-keys -t "$launch" Enter           # Enter opens (traverses into) the folder
+sleep 1.5
+$TM send-keys -t "$launch" Enter           # top row "[ choose THIS folder ]" selects mail-bot
 sleep 2
 if opened_in "$WORK/proj/mail-bot"; then
-  echo "PASS [pane picker]: fzf selection opened an instance in proj/mail-bot"
+  echo "PASS [pane picker]: traversal + 'choose THIS folder' opened an instance in proj/mail-bot"
 else
   echo "FAIL [pane picker]: no window in $WORK/proj/mail-bot"; rc=1
 fi
