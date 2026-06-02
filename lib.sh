@@ -58,12 +58,19 @@ cs_config_set() {
 cs_dir_within() { case "$2/" in "$1/"*) return 0 ;; *) return 1 ;; esac; }
 # cs_dir_rel ROOT PATH -> PATH relative to ROOT ("." when equal).
 cs_dir_rel() { local r="$1" p="$2"; [ "$p" = "$r" ] && { printf '.'; return; }; p="${p#"$r"/}"; printf '%s' "$p"; }
-# Preferred picker start: $PWD if within ROOT (echo it, return 0); otherwise echo
-# ROOT and return 1 so the caller can warn + reprompt.  cs_pick_start ROOT
+# Preferred picker start, in order: $PWD (if within ROOT) > the caller's DEFAULT
+# (if within ROOT — e.g. an instance's current dir from the registry) > ROOT.
+# Echoes the start dir; returns 0 when it found a real start, 1 when it fell back
+# to ROOT (so the caller can warn + reprompt). cs_pick_start ROOT [DEFAULT]
 cs_pick_start() {
-  local root="$1" here; here="$(pwd -P 2>/dev/null)" || here="$root"
-  if cs_dir_within "$root" "$here"; then printf '%s' "$here"; return 0
-  else printf '%s' "$root"; return 1; fi
+  local root="$1" def="${2:-}" here
+  here="$(pwd -P 2>/dev/null)" || here=""
+  if [ -n "$here" ] && cs_dir_within "$root" "$here"; then printf '%s' "$here"; return 0; fi
+  if [ -n "$def" ]; then
+    def="${def/#\~/$HOME}"; def="$(cd "$def" 2>/dev/null && pwd -P)" || def=""
+    if [ -n "$def" ] && cs_dir_within "$root" "$def"; then printf '%s' "$def"; return 0; fi
+  fi
+  printf '%s' "$root"; return 1
 }
 
 # Resolve the naming scheme. Precedence: explicit arg > env > config > "nato".
@@ -82,13 +89,14 @@ cs_scheme() {
 # "[ choose THIS folder ]" row selects the current directory.
 # cs_pick_dir [default-start-dir]
 cs_pick_dir() {
-  local root escape cur warn=""
+  local def="${1:-}" root escape cur warn=""
   root="$(cs_config_get search_dir "$HOME")"; root="${root/#\~/$HOME}"
   root="$(cd "$root" 2>/dev/null && pwd -P)" || root="$HOME"
   escape="$(cs_config_get allow_dir_escape false)"
-  # $PWD is the preferred start; if it's outside the root, warn and start at root.
-  if cur="$(cs_pick_start "$root")"; then warn=""
-  else warn="current directory is outside the picker root ($root) — starting at root"
+  # Start at $PWD if it's under the root; else the caller's dir (e.g. the
+  # instance's current/saved dir) if under the root; else warn and start at root.
+  if cur="$(cs_pick_start "$root" "$def")"; then warn=""
+  else warn="$([ -n "$def" ] && echo 'neither current nor target dir' || echo 'current directory') is outside the picker root ($root) — starting at root"
        printf 'claude: %s\n' "$warn" >&2; fi
 
   if ! command -v fzf >/dev/null 2>&1; then          # fallback: type a path
@@ -377,9 +385,20 @@ cs_clear_status() { rm -f "$(_cs_status_file "$1")" 2>/dev/null || true; }
 # Mark active records closed when their window no longer exists, then link ids.
 cs_reconcile() {
   cs_open
-  local reg tmp live now; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
-  live="$(tmux list-windows -t "$(cs_session)" -F '#{window_id}' 2>/dev/null | jq -R . | jq -cs . 2>/dev/null)"
-  [ -n "$live" ] || live='[]'
+  local reg tmp live now livew sd f wid
+  livew="$(tmux list-windows -t "$(cs_session)" -F '#{window_id}' 2>/dev/null || true)"
+  # Sweep stale per-window status files (windows that no longer exist).
+  sd="$(cs_status_dir)"
+  if [ -d "$sd" ]; then
+    local livesp=" $(echo $livew) "          # space-delimited, padded (word-safe)
+    for f in "$sd"/*; do
+      [ -e "$f" ] || continue
+      wid="$(basename "$f")"
+      case "$livesp" in *" $wid "*) : ;; *) rm -f "$f" ;; esac
+    done
+  fi
+  reg="$(cs_registry)"; [ -s "$reg" ] || return 0
+  [ -n "$livew" ] && live="$(printf '%s\n' "$livew" | jq -R . | jq -cs . 2>/dev/null)" || live='[]'
   now="$(date +%s)"; tmp="$(mktemp)"
   jq -c --argjson live "$live" --argjson now "$now" \
     'if .status=="active" and (([.window_id] - $live) | length > 0)

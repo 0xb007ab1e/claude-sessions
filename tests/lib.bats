@@ -146,11 +146,24 @@ setup() {
   [ "$(cs_dir_rel /a/b /a/b/c/d)" = "c/d" ]
 }
 
-@test "cs_pick_start prefers PWD under root, else root" {
-  mkdir -p "$BATS_TEST_TMPDIR/r/sub"
+@test "cs_pick_start precedence: PWD > caller default > root" {
+  mkdir -p "$BATS_TEST_TMPDIR/r/a" "$BATS_TEST_TMPDIR/r/b"
   local r; r="$(cd "$BATS_TEST_TMPDIR/r" && pwd -P)"
-  cd "$r/sub"; run cs_pick_start "$r"
-  [ "$status" -eq 0 ]; [ "$output" = "$r/sub" ]      # PWD under root -> PWD
-  cd /;        run cs_pick_start "$r"
-  [ "$status" -eq 1 ]; [ "$output" = "$r" ]          # PWD outside  -> root (warn path)
+  cd "$r/a"; run cs_pick_start "$r" "$r/b"
+  [ "$status" -eq 0 ]; [ "$output" = "$r/a" ]        # PWD under root wins
+  cd /;      run cs_pick_start "$r" "$r/b"
+  [ "$status" -eq 0 ]; [ "$output" = "$r/b" ]        # PWD outside -> caller default (under root)
+  cd /;      run cs_pick_start "$r" /nonexistent-xyz
+  [ "$status" -eq 1 ]; [ "$output" = "$r" ]          # neither under root -> root (warn)
+  cd /;      run cs_pick_start "$r"
+  [ "$status" -eq 1 ]; [ "$output" = "$r" ]          # no default, PWD outside -> root (warn)
+}
+
+@test "cs_reconcile sweeps status files for dead windows" {
+  cs_set_status @1 working
+  cs_set_status @99 idle
+  cs_record_active a 39 @1 /tmp/a          # session doesn't exist -> no live windows
+  cs_reconcile
+  [ ! -e "$(cs_status_dir)/@1" ]           # both swept
+  [ ! -e "$(cs_status_dir)/@99" ]
 }
