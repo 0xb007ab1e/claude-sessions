@@ -321,7 +321,15 @@ cs_apply_window() {
   tmux rename-window -t "$target" "$name" 2>/dev/null || true
   tmux set-window-option -t "$target" window-status-style "fg=colour${color}" 2>/dev/null || true
   tmux set-window-option -t "$target" window-status-current-style "fg=colour${color},bold,reverse" 2>/dev/null || true
+  # Watchdog: keep the pane in a "dead" state on exit so a crash can be detected
+  # and respawned in place (scoped to managed windows only).
+  if [ "$(cs_config_get watchdog false)" = true ]; then
+    tmux set-window-option -t "$target" remain-on-exit on 2>/dev/null || true
+  fi
 }
+
+# Where the watchdog tracks per-window restart timestamps (crash-loop budget).
+cs_watchdog_dir() { echo "$(cs_state_dir)/watchdog"; }
 
 # Append an active record, superseding any existing active record for the same
 # window id (a reused window replaces its previous active row).

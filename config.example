@@ -48,3 +48,16 @@ notify_on_finish = false
 # Reopen the previous session's instances automatically at boot (the systemd
 # service snapshots active instances on stop and reopens them on start).
 restore_on_boot = false
+
+# Watchdog: auto-restart CRASHED instances in place, resuming the conversation.
+# Opt-in — when true, re-run ./install.sh so the pane-died hook is wired up.
+#   watchdog              : master switch
+#   watchdog_restart_on   : crash (exit≠0, default) | always | never
+#   watchdog_max_retries  : give up after this many restarts within the window
+#   watchdog_window       : seconds; surviving longer resets the retry count
+#   watchdog_backoff      : seconds before respawn, doubled each retry
+watchdog             = false
+# watchdog_restart_on  = crash
+# watchdog_max_retries = 3
+# watchdog_window      = 60
+# watchdog_backoff     = 5
