@@ -165,6 +165,7 @@ tapping a window name in the status bar.
 | `notify` | `desktop` / `ntfy` / `pushover` / `none` — alert when an instance rings the bell (enable the bell in Claude); `ntfy`/`pushover` push to your phone |
 | `restore_on_boot` | `true` to reopen the previous session's instances at boot |
 | `search_dir` | root the directory picker searches (e.g. `~/src`) |
+| `watchdog` | `true` to auto-restart **crashed** instances in place — then re-run `./install.sh`. Tune with `watchdog_restart_on` / `watchdog_max_retries` / `watchdog_window` / `watchdog_backoff` |
 
 ## Good to know
 
@@ -172,6 +173,10 @@ tapping a window name in the status bar.
   name + color in the status bar and in `claude-ls`.
 - **Closed instances** are remembered (with their directory + exact conversation
   id) so **Reopen closed** brings them right back.
+- **Crashed instances auto-restart** (opt-in: `watchdog = true`, then re-run
+  `./install.sh`). A crash is respawned **in place**, resuming the exact
+  conversation; a clean exit isn't restarted, and after repeated crashes the
+  watchdog gives up and notifies once. Works under the boot service too.
 - **`claude` is not shadowed** — `cj` joins the session; plain `claude` still runs
   a normal, non-tmux instance.
 - Manage the boot service: `systemctl --user {status,restart} claude-tmux.service`.
@@ -181,5 +186,6 @@ tapping a window name in the status bar.
 ```bash
 bats tests/                  # unit tests for lib.sh
 bash tests/integration.sh    # end-to-end picker + popup test (private tmux socket)
+bash tests/watchdog.sh       # watchdog crash/respawn/give-up logic (fake tmux)
 ```
 Full reference (every script + function): open `docs/index.html`.
