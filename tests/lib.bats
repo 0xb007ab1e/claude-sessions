@@ -1,7 +1,8 @@
 #!/usr/bin/env bats
 # Unit tests for lib.sh. Run: bats tests/   (install: apt install bats / brew install bats-core)
 # Each test gets an isolated HOME/state and a non-existent session so no real
-# tmux server is touched.
+# tmux server is touched. The registry is JSONL (v2); cs_rows renders it back to
+# the legacy tab-separated columns the assertions use.
 
 setup() {
   export HOME="$BATS_TEST_TMPDIR/home"
@@ -60,44 +61,66 @@ setup() {
   [[ "$output" == myproj-1$'\t'* ]]
 }
 
+@test "registry is JSONL with a schema version" {
+  cs_record_active a 39 @1 /tmp/a
+  [ "$(jq -r .v "$(cs_registry)")" = "$CS_SCHEMA_VERSION" ]
+  jq -e . "$(cs_registry)" >/dev/null     # each line is valid JSON
+}
+
 @test "cs_record_active keeps one active row per window id" {
   cs_record_active a 39 @1 /tmp/a
   cs_record_active b 40 @1 /tmp/b      # same window id supersedes
-  run wc -l < "$(cs_registry)"
-  [ "${output// /}" -eq 1 ]
+  [ "$(cs_rows | wc -l)" -eq 1 ]
+  [ "$(cs_field 1 "$(cs_rows)")" = b ]
+}
+
+@test "cs_record_active escapes special chars in cwd" {
+  cs_record_active a 39 @1 "/tmp/p q'\"x"
+  [ "$(cs_field 5 "$(cs_rows)")" = "/tmp/p q'\"x" ]
 }
 
 @test "cs_reconcile closes rows whose window is gone" {
   cs_record_active a 39 @1 /tmp/a      # session doesn't exist -> no live windows
   cs_reconcile
-  run awk -F'\t' '{print $7}' "$(cs_registry)"
-  [ "$output" = closed ]
+  [ "$(cs_rows | cut -f7)" = closed ]
 }
 
 @test "cs_prune keeps newest N closed rows" {
-  mkdir -p "$(cs_state_dir)"
-  printf 'a\t39\t%s\t@1\t/a\t1\tclosed\t100\n' "$CLAUDE_TMUX_SESSION" >  "$(cs_registry)"
-  printf 'b\t40\t%s\t@2\t/b\t1\tclosed\t200\n' "$CLAUDE_TMUX_SESSION" >> "$(cs_registry)"
-  printf 'c\t41\t%s\t@3\t/c\t1\tclosed\t300\n' "$CLAUDE_TMUX_SESSION" >> "$(cs_registry)"
+  reg="$(cs_registry)"; mkdir -p "$(cs_state_dir)"
+  for ne in a:100 b:200 c:300; do
+    jq -cn --arg n "${ne%:*}" --argjson e "${ne#*:}" --argjson v "$CS_SCHEMA_VERSION" \
+      '{v:$v,name:$n,color:"39",session:"x",window_id:("@"+$n),cwd:"/x",started:1,
+        status:"closed",ended:$e,transcript:null,model:null,effort:null}'
+  done > "$reg"
   cs_prune 2
-  run cut -f1 "$(cs_registry)"
-  [[ "$output" == *c* ]] && [[ "$output" == *b* ]] && [[ "$output" != *a* ]]
+  out="$(cs_rows | cut -f1)"
+  [[ "$out" == *c* ]] && [[ "$out" == *b* ]] && [[ "$out" != *a* ]]
 }
 
-@test "cs_record_active stores model and effort in columns 10/11" {
+@test "cs_record_active stores model and effort" {
   cs_record_active a 39 @1 /tmp/a "" opus high
-  run cs_field 10 "$(cat "$(cs_registry)")"
-  [ "$output" = opus ]
-  run cs_field 11 "$(cat "$(cs_registry)")"
-  [ "$output" = high ]
+  row="$(cs_rows)"
+  [ "$(cs_field 10 "$row")" = opus ]
+  [ "$(cs_field 11 "$row")" = high ]
 }
 
-@test "cs_link_transcripts preserves model/effort columns" {
-  cs_record_active a 39 @1 /tmp/a "" opus high   # empty transcript (col 9)
+@test "cs_link_transcripts preserves model/effort" {
+  cs_record_active a 39 @1 /tmp/a "" opus high   # empty transcript
   cs_find_transcript() { echo "FAKEUUID"; }       # stub so a transcript is linked
   cs_link_transcripts
-  row="$(cat "$(cs_registry)")"
+  row="$(cs_rows)"
   [ "$(cs_field 9  "$row")" = FAKEUUID ]
   [ "$(cs_field 10 "$row")" = opus ]
   [ "$(cs_field 11 "$row")" = high ]
+}
+
+@test "cs_open migrates legacy v1 TSV to JSONL v2 (with backup)" {
+  mkdir -p "$(cs_state_dir)"
+  printf 'a\t39\t%s\t@1\t/tmp/proj one\t1000\tactive\t\t\tsonnet\thigh\n' \
+    "$CLAUDE_TMUX_SESSION" > "$(cs_registry_legacy)"
+  cs_open
+  [ -s "$(cs_registry)" ]                                   # jsonl created
+  [ "$(jq -r .v "$(cs_registry)")" = "$CS_SCHEMA_VERSION" ] # at current version
+  [ "$(cs_field 5 "$(cs_rows)")" = "/tmp/proj one" ]        # data preserved
+  ls "$(cs_state_dir)"/registry.tsv.bak.* >/dev/null 2>&1   # backup made
 }

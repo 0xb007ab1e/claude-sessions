@@ -24,8 +24,14 @@ SESSION="${CLAUDE_TMUX_SESSION:-claude}"
 ENABLE_BOOT=1
 [ "${1:-}" = "--no-boot" ] && ENABLE_BOOT=0
 
+# Required dependencies.
 TMUX_BIN="$(command -v tmux || true)"
 [ -n "$TMUX_BIN" ] || { echo "error: tmux not found on PATH" >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || {
+  echo "error: jq not found on PATH — required for the instance registry." >&2
+  echo "       install it, e.g.:  sudo apt-get install -y jq   (or: brew install jq)" >&2
+  exit 1
+}
 
 CSCONF="$HOME/.config/claude-sessions"          # fixed: tmux source-file reads ~/.config
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/claude-sessions"

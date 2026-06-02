@@ -1,20 +1,32 @@
 #!/usr/bin/env bash
 # lib.sh — shared helpers for the claude-sessions tools: config, naming schemes,
-# a color palette, and the active/closed instance registry. Sourced (not run) by
-# cj, claude-session, claude-ls, claude-new, claude-restore.
+# a color palette, live status, and the active/closed instance registry.
+# Sourced (not run) by the claude-* tools.
 #
-# Registry: one TSV row per instance, columns:
-#   1 name  2 color  3 session  4 window_id  5 cwd  6 started_epoch
-#   7 status(active|closed)  8 ended_epoch  9 transcript_id
+# Registry: JSONL (one JSON object per line) at registry.jsonl. Each record:
+#   {v, name, color, session, window_id, cwd, started, status, ended,
+#    transcript, model, effort}
+#   v        = schema version (CS_SCHEMA_VERSION)
+#   status   = "active" | "closed";  ended/transcript/model/effort may be null
+# Reads/writes go through jq (correct escaping). cs_rows renders records back to
+# the legacy tab-separated column order (name,color,session,window_id,cwd,
+# started,status,ended,transcript,model,effort) for awk/cut-based consumers.
+#
+# Migration: the on-disk version is checked on first access (cs_open). An older
+# registry (legacy v1 TSV at registry.tsv, or JSONL with v<current) is backed up,
+# upgraded record-by-record, and validated against the backup, all under flock.
+
+CS_SCHEMA_VERSION=2
 
 # --- locations ---------------------------------------------------------------
-cs_session()     { echo "${CLAUDE_TMUX_SESSION:-claude}"; }
+cs_session()          { echo "${CLAUDE_TMUX_SESSION:-claude}"; }
 # Fixed at ~/.config so tmux's `source-file ~/.config/.../bindings.conf` (which
 # cannot read $XDG_CONFIG_HOME) always finds the generated bindings.
-cs_config_dir()  { echo "$HOME/.config/claude-sessions"; }
-cs_config_file() { echo "$(cs_config_dir)/config"; }
-cs_state_dir()   { echo "${XDG_STATE_HOME:-$HOME/.local/state}/claude-sessions"; }
-cs_registry()    { echo "$(cs_state_dir)/registry.tsv"; }
+cs_config_dir()       { echo "$HOME/.config/claude-sessions"; }
+cs_config_file()      { echo "$(cs_config_dir)/config"; }
+cs_state_dir()        { echo "${XDG_STATE_HOME:-$HOME/.local/state}/claude-sessions"; }
+cs_registry()         { echo "$(cs_state_dir)/registry.jsonl"; }
+cs_registry_legacy()  { echo "$(cs_state_dir)/registry.tsv"; }   # pre-v2 format
 
 # --- config: a simple "key = value" file (comments with #) -------------------
 # cs_config_get KEY [DEFAULT]
@@ -39,8 +51,7 @@ cs_scheme() {
 
 # Prompt for a directory with completion/typeahead, echoing the chosen path.
 # With fzf: a live typeahead picker over recently-used dirs (registry) + the
-# directory tree under $HOME (streamed, so results appear as they're found);
-# typing a path not in the list and pressing Enter uses what you typed.
+# directory tree under $HOME; typing a path not in the list uses what you typed.
 # Without fzf: readline editing with TAB filename completion (prefilled).
 # cs_pick_dir [default]
 cs_pick_dir() {
@@ -53,7 +64,7 @@ cs_pick_dir() {
     elif command -v fdfind >/dev/null 2>&1; then lister='fdfind -td -d4 -H -E .git -E node_modules . "$root"'
     else lister='find "$root" -maxdepth 4 -type d -not -path "*/.*" -not -path "*/node_modules/*"'; fi
     out="$( { printf '%s\n' "$def"
-              [ -f "$(cs_registry)" ] && awk -F'\t' 'NF{print $5}' "$(cs_registry)"
+              cs_rows | awk -F'\t' 'NF{print $5}'   # recently-used dirs from the registry
               eval "$lister" 2>/dev/null
             } | awk 'NF && !seen[$0]++' \
             | fzf --print-query --query "$def" --prompt 'directory> ' \
@@ -63,7 +74,6 @@ cs_pick_dir() {
     printf '%s' "${sel:-${q:-$def}}"
     return
   fi
-  # No fzf: readline editing + TAB completion (best-effort nicer settings).
   local _d
   bind 'set show-all-if-ambiguous on'        2>/dev/null || true
   bind 'set completion-ignore-case on'       2>/dev/null || true
@@ -89,11 +99,120 @@ cs_color_hash() {
   cs_color_idx "$h"
 }
 
+# =====================  registry: JSONL store via jq  ========================
+
+# Render the registry as legacy tab-separated rows, canonical column order, so
+# awk/cut-based consumers are unchanged. Empty fields preserved; empty if none.
+cs_rows() {
+  cs_open
+  local reg; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
+  jq -r 'select(type=="object")
+         | [ .name, .color, .session, .window_id, .cwd, (.started|tostring),
+             .status, (.ended|if .==null then "" else tostring end),
+             (.transcript//""), (.model//""), (.effort//"") ] | @tsv' \
+     "$reg" 2>/dev/null
+}
+
+# Read field N (1-based, tab-delimited, preserves empty fields) from a row that
+# cs_rows produced. cs_field N "row"
+cs_field() { cut -f"$1" <<<"$2"; }
+
+# Ensure the registry exists and is at the current schema version (lazy migrate).
+cs_open() {
+  local reg legacy lock; reg="$(cs_registry)"; legacy="$(cs_registry_legacy)"
+  mkdir -p "$(cs_state_dir)"
+  if [ -f "$reg" ]; then
+    # All records current (empty file slurps to [] -> all() is true)?
+    jq -se 'all(.[]; (.v//0)=='"$CS_SCHEMA_VERSION"')' "$reg" >/dev/null 2>&1 && return 0
+  elif [ ! -s "$legacy" ]; then
+    : > "$reg"; return 0          # nothing anywhere -> fresh empty registry
+  fi
+  lock="$(cs_state_dir)/.registry.lock"
+  { exec 9>"$lock"; flock 9 2>/dev/null || true; cs_migrate; flock -u 9 2>/dev/null || true; } 9>"$lock"
+}
+
+# Back up, upgrade record-by-record to CS_SCHEMA_VERSION, validate vs. backup.
+cs_migrate() {
+  local reg legacy ts bak src tmp
+  reg="$(cs_registry)"; legacy="$(cs_registry_legacy)"; ts="$(date +%s)"
+  if [ -f "$reg" ] && [ -s "$reg" ]; then
+    src="$reg";    bak="$reg.bak.$ts"
+  elif [ -s "$legacy" ]; then
+    src="$legacy"; bak="$legacy.bak.$ts"
+  else
+    : > "$reg"; return 0
+  fi
+  cp -p "$src" "$bak"
+  tmp="$(mktemp)"
+
+  if [ "$src" = "$legacy" ]; then
+    # Legacy v1 TSV (11 cols) -> JSONL v2, one record per non-empty line.
+    local line
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      jq -cn --argjson v "$CS_SCHEMA_VERSION" \
+        --arg name "$(cut -f1 <<<"$line")"   --arg color "$(cut -f2 <<<"$line")" \
+        --arg session "$(cut -f3 <<<"$line")" --arg wid "$(cut -f4 <<<"$line")" \
+        --arg cwd "$(cut -f5 <<<"$line")"    --arg started "$(cut -f6 <<<"$line")" \
+        --arg status "$(cut -f7 <<<"$line")" --arg ended "$(cut -f8 <<<"$line")" \
+        --arg transcript "$(cut -f9 <<<"$line")" --arg model "$(cut -f10 <<<"$line")" \
+        --arg effort "$(cut -f11 <<<"$line")" \
+        '{v:$v,name:$name,color:$color,session:$session,window_id:$wid,cwd:$cwd,
+          started:($started|tonumber? // 0),status:$status,
+          ended:($ended|if .=="" then null else (tonumber? // null) end),
+          transcript:($transcript|select(.!="")//null),
+          model:($model|select(.!="")//null),
+          effort:($effort|select(.!="")//null)}'
+    done < "$src" > "$tmp"
+  else
+    # JSONL upgrade: stamp current version, ensure all fields exist.
+    jq -c --argjson v "$CS_SCHEMA_VERSION" \
+      '{v:$v, name, color, session, window_id, cwd, started, status,
+        ended:(.ended//null), transcript:(.transcript//null),
+        model:(.model//null), effort:(.effort//null)}' "$src" > "$tmp"
+  fi
+
+  # Validate: every record is at the current version, and the (name|window_id|
+  # started) key set + record count match the backup — no records lost/altered.
+  local ok=1
+  jq -se 'all(.[]; .v=='"$CS_SCHEMA_VERSION"')' "$tmp" >/dev/null 2>&1 || ok=0
+  local newn oldn
+  newn="$(grep -c . "$tmp" 2>/dev/null || echo 0)"
+  if [ "$src" = "$legacy" ]; then oldn="$(grep -c . "$bak" 2>/dev/null || echo 0)"
+  else oldn="$(grep -c . "$bak" 2>/dev/null || echo 0)"; fi
+  [ "$newn" = "$oldn" ] || ok=0
+  local newk oldk
+  newk="$(jq -r '[.name,.window_id,(.started|tostring)]|@tsv' "$tmp" 2>/dev/null | sort)"
+  if [ "$src" = "$legacy" ]; then
+    oldk="$(awk -F'\t' 'NF{print $1"\t"$4"\t"$6}' "$bak" | sort)"
+  else
+    oldk="$(jq -r '[.name,.window_id,(.started|tostring)]|@tsv' "$bak" 2>/dev/null | sort)"
+  fi
+  [ "$newk" = "$oldk" ] || ok=0
+
+  if [ "$ok" = 1 ]; then
+    mv "$tmp" "$reg"
+    : > "$(cs_state_dir)/.migrated"   # marker: a backup exists to offer removing
+    echo "claude-sessions: migrated registry to v$CS_SCHEMA_VERSION (backup: $bak)" >&2
+  else
+    rm -f "$tmp"
+    echo "claude-sessions: registry migration validation FAILED — left unchanged (backup: $bak)" >&2
+    return 1
+  fi
+}
+
+# Remove migration backups after a successful migration. cs_clean_backups
+cs_clean_backups() {
+  local d; d="$(cs_state_dir)"
+  rm -f "$d"/registry.jsonl.bak.* "$d"/registry.tsv.bak.* 2>/dev/null || true
+  rm -f "$d/.migrated" 2>/dev/null || true
+}
+
 # Names already taken: live window names + active registry entries.
 cs_used_names() {
   tmux list-windows -t "$(cs_session)" -F '#W' 2>/dev/null
-  local reg; reg="$(cs_registry)"
-  [ -f "$reg" ] && awk -F'\t' '$7=="active"{print $2}' "$reg"
+  cs_open; local reg; reg="$(cs_registry)"
+  [ -s "$reg" ] && jq -r 'select(.status=="active") | .name' "$reg" 2>/dev/null
 }
 
 # Allocate "name<TAB>color" for a scheme + cwd, avoiding collisions.
@@ -137,20 +256,23 @@ cs_apply_window() {
   tmux set-window-option -t "$target" window-status-current-style "fg=colour${color},bold,reverse" 2>/dev/null || true
 }
 
-# Append an active row, keeping at most one active row per window id (a reused
-# window supersedes its previous active row).
+# Append an active record, superseding any existing active record for the same
+# window id (a reused window replaces its previous active row).
 #   cs_record_active NAME COLOR WID CWD [TRANSCRIPT] [MODEL] [EFFORT]
-# Column 9 (transcript) defaults empty (filled later by cs_link_transcripts), or
-# is set when known up front (e.g. resuming a specific conversation). Columns 10
-# (model) and 11 (effort) record a per-instance model/effort override if used.
 cs_record_active() {
-  local reg tmp; reg="$(cs_registry)"; mkdir -p "$(cs_state_dir)"
-  if [ -f "$reg" ]; then
-    tmp="$(mktemp)"
-    awk -F'\t' -v wid="$3" '!($7=="active" && $4==wid)' "$reg" > "$tmp" && mv "$tmp" "$reg"
-  fi
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$1" "$2" "$(cs_session)" "$3" "$4" "$(date +%s)" active "" "${5:-}" "${6:-}" "${7:-}" >> "$reg"
+  cs_open
+  local reg tmp; reg="$(cs_registry)"; mkdir -p "$(cs_state_dir)"; tmp="$(mktemp)"
+  { [ -s "$reg" ] && jq -c --arg w "$3" 'select(.window_id!=$w or .status!="active")' "$reg" 2>/dev/null
+    jq -cn --argjson v "$CS_SCHEMA_VERSION" \
+      --arg name "$1" --arg color "$2" --arg session "$(cs_session)" --arg wid "$3" \
+      --arg cwd "$4" --argjson started "$(date +%s)" \
+      --arg transcript "${5:-}" --arg model "${6:-}" --arg effort "${7:-}" \
+      '{v:$v,name:$name,color:$color,session:$session,window_id:$wid,cwd:$cwd,
+        started:$started,status:"active",ended:null,
+        transcript:($transcript|select(.!="")//null),
+        model:($model|select(.!="")//null),
+        effort:($effort|select(.!="")//null)}'
+  } > "$tmp" && mv "$tmp" "$reg"
 }
 
 # Claude's transcript directory for a cwd (non-alphanumerics → '-', matching
@@ -160,8 +282,8 @@ cs_project_dir() {
     "$(printf '%s' "$1" | sed 's#[^A-Za-z0-9]#-#g')"
 }
 
-# Best-effort: the transcript (session) id for an instance — the newest
-# *.jsonl in the cwd's project dir modified at/after the start time.
+# Best-effort: the transcript id for an instance — the newest *.jsonl in the
+# cwd's project dir modified at/after the start time.
 # cs_find_transcript CWD STARTED_EPOCH  ->  uuid or empty
 cs_find_transcript() {
   local d f; d="$(cs_project_dir "$1")"
@@ -171,36 +293,21 @@ cs_find_transcript() {
   [ -n "$f" ] && basename "$f" .jsonl || true
 }
 
-# Fill the transcript id (column 9) for active rows that don't have one yet.
-# NB: `IFS=$'\t' read` collapses consecutive tabs (tab is IFS-whitespace), which
-# corrupts rows with an empty field (e.g. active rows have an empty `ended`). So
-# read the whole line and pull fields with cut, which preserves empty fields.
+# Fill the transcript id for active records that don't have one yet.
 cs_link_transcripts() {
-  local reg tmp line status transcript cwd started newt rest
-  reg="$(cs_registry)"; [ -f "$reg" ] || return 0
-  tmp="$(mktemp)"
-  while IFS= read -r line; do
-    status="$(cut -f7 <<<"$line")"; transcript="$(cut -f9 <<<"$line")"
-    if [ "$status" = active ] && [ -z "$transcript" ]; then
-      cwd="$(cut -f5 <<<"$line")"; started="$(cut -f6 <<<"$line")"
-      newt="$(cs_find_transcript "$cwd" "$started")"
-      if [ -n "$newt" ]; then
-        # Splice the new id into column 9 while preserving any trailing columns
-        # (10 model / 11 effort) — a bare cut -f1-8 + f9 would drop them.
-        rest="$(cut -f10- <<<"$line")"
-        line="$(cut -f1-8 <<<"$line")$(printf '\t%s' "$newt")${rest:+$(printf '\t%s' "$rest")}"
-      fi
-    fi
-    printf '%s\n' "$line"
-  done < "$reg" > "$tmp" && mv "$tmp" "$reg"
+  local reg tmp wid cwd started newt; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
+  while IFS=$'\t' read -r wid cwd started; do
+    [ -n "$wid" ] || continue
+    newt="$(cs_find_transcript "$cwd" "$started")"; [ -n "$newt" ] || continue
+    tmp="$(mktemp)"
+    jq -c --arg w "$wid" --arg t "$newt" \
+      'if .window_id==$w and .status=="active" and (.transcript==null or .transcript=="")
+       then .transcript=$t else . end' "$reg" > "$tmp" && mv "$tmp" "$reg"
+  done < <(jq -r 'select(.status=="active" and (.transcript==null or .transcript==""))
+                  | [.window_id,.cwd,(.started|tostring)] | @tsv' "$reg" 2>/dev/null)
 }
 
-# Read field N (1-based, tab-delimited, preserves empty fields) from a registry
-# row. cs_field N "row"
-cs_field() { cut -f"$1" <<<"$2"; }
-
 # --- per-instance live status (written by claude-hook, read by claude-ls/bar) -
-# A small file per window id holding "<status>\t<epoch>"; statuses:
 #   working | idle | needs-approval   (idle = finished a turn, awaiting input)
 cs_status_dir()   { echo "$(cs_state_dir)/status"; }
 _cs_status_file() { echo "$(cs_status_dir)/$(printf '%s' "$1" | tr -c 'A-Za-z0-9@_-' '_')"; }
@@ -208,36 +315,36 @@ cs_set_status()   { mkdir -p "$(cs_status_dir)"; printf '%s\t%s\n' "$2" "$(date 
 cs_get_status()   { local f; f="$(_cs_status_file "$1")"; [ -f "$f" ] && cut -f1 "$f" || true; }
 cs_clear_status() { rm -f "$(_cs_status_file "$1")" 2>/dev/null || true; }
 
-# Mark active rows closed when their window no longer exists.
+# Mark active records closed when their window no longer exists, then link ids.
 cs_reconcile() {
-  local reg s live now tmp
-  reg="$(cs_registry)"; [ -f "$reg" ] || return 0
-  s="$(cs_session)"
-  live=" $(tmux list-windows -t "$s" -F '#{window_id}' 2>/dev/null | tr '\n' ' ') "
-  now="$(date +%s)"
-  tmp="$(mktemp)"
-  awk -F'\t' -v OFS='\t' -v live="$live" -v now="$now" '
-    $7=="active" && index(live, " " $4 " ")==0 { $7="closed"; $8=now }
-    { print }
-  ' "$reg" > "$tmp" && mv "$tmp" "$reg"
-  cs_link_transcripts   # capture transcript ids for still-active instances
+  cs_open
+  local reg tmp live now; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
+  live="$(tmux list-windows -t "$(cs_session)" -F '#{window_id}' 2>/dev/null | jq -R . | jq -cs . 2>/dev/null)"
+  [ -n "$live" ] || live='[]'
+  now="$(date +%s)"; tmp="$(mktemp)"
+  jq -c --argjson live "$live" --argjson now "$now" \
+    'if .status=="active" and (([.window_id] - $live) | length > 0)
+     then .status="closed" | .ended=$now else . end' "$reg" > "$tmp" && mv "$tmp" "$reg"
+  cs_link_transcripts
 }
 
-# Rename a window and update its active registry row. cs_set_name WID NEWNAME
+# Rename a window and update its active registry record. cs_set_name WID NEWNAME
 cs_set_name() {
-  local wid="$1" newname="$2" reg tmp
-  tmux rename-window -t "$(cs_session):$wid" "$newname" 2>/dev/null || true
-  reg="$(cs_registry)"; [ -f "$reg" ] || return 0
+  cs_open
+  tmux rename-window -t "$(cs_session):$1" "$2" 2>/dev/null || true
+  local reg tmp; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
   tmp="$(mktemp)"
-  awk -F'\t' -v OFS='\t' -v wid="$wid" -v n="$newname" \
-    '$4==wid && $7=="active"{$1=n} {print}' "$reg" > "$tmp" && mv "$tmp" "$reg"
+  jq -c --arg w "$1" --arg n "$2" \
+    'if .window_id==$w and .status=="active" then .name=$n else . end' "$reg" > "$tmp" && mv "$tmp" "$reg"
 }
 
-# Keep all active rows + the most recently-closed N (by end time). cs_prune [N]
+# Keep all active records + the most recently-closed N (by end time). cs_prune [N]
 cs_prune() {
-  local keep="${1:-50}" reg tmp; reg="$(cs_registry)"; [ -f "$reg" ] || return 0
+  cs_open
+  local keep="${1:-50}" reg tmp; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
   tmp="$(mktemp)"
-  { awk -F'\t' '$7=="active"' "$reg"
-    awk -F'\t' '$7=="closed"' "$reg" | sort -t"$(printf '\t')" -k8,8nr | head -n "$keep"
+  { jq -c 'select(.status=="active")' "$reg"
+    jq -c 'select(.status=="closed")' "$reg" \
+      | jq -s -c --argjson k "$keep" 'sort_by(.ended // 0) | reverse | .[:$k] | .[]'
   } > "$tmp" && mv "$tmp" "$reg"
 }

@@ -9,12 +9,24 @@ is resolved at install time from your checkout location and environment.
 
 Full docs: [`docs/index.html`](docs/index.html).
 
+## Requirements
+
+| Dependency | For | Notes |
+|---|---|---|
+| `tmux` ≥ 3.2 | everything | popups/menus need 3.2+ |
+| `jq` | the instance registry | **required**; `install.sh` checks for it (`apt install jq` / `brew install jq`) |
+| coreutils, `flock` | core / safe migrations | `flock` is part of util-linux |
+| `bash-completion` | tab-completion | optional |
+| `fzf` | nicer reopen picker | optional (falls back to a numbered prompt) |
+| `notify-send` / `curl` | notifications | optional, per chosen `notify` backend |
+| a terminal emulator | desktop shortcut | optional; auto-detected |
+
 ## Quick start
 
 ```bash
 git clone https://github.com/0xb007ab1e/claude-sessions.git
 cd claude-sessions
-./install.sh          # symlinks + tmux config + systemd unit + desktop entry
+./install.sh          # checks deps, then symlinks + config + service + desktop entry
 cj                    # join the session
 ```
 
@@ -53,7 +65,8 @@ auto-name every `cj` without the flag. Each instance gets a stable **color**.
 claude-ls             # colored: ● active   ○ closed (with dir + uptime/closed-ago)
 ```
 
-The list is backed by a registry at `~/.local/state/claude-sessions/registry.tsv`;
+The list is backed by a versioned JSONL registry at `~/.local/state/claude-sessions/registry.jsonl`
+(migrated automatically from older formats on first use; `claude-ls --clean-backups` removes migration backups);
 instances flip to *closed* automatically when their window goes away.
 
 **Hotkeys** (prefix is `Ctrl-b`) — discover them all via the menu or cheat sheet:
