@@ -18,10 +18,15 @@ auto_name = false
 # default_model  =
 # default_effort =
 
-# Root directory the "New in dir…" / reopen picker searches for the fzf
-# typeahead. Default: $HOME. Point it at where your projects live (e.g. ~/src)
-# to keep the candidate list tight and relevant.
+# Root directory for the "New in dir…" / reopen picker. The picker walks the
+# tree one level at a time, shows entries RELATIVE to this root, and is floored
+# here — you can't navigate above it. Default: $HOME. Point it at where your
+# projects live (e.g. ~/_src/_dev) to keep things tight.
 search_dir = ~
+
+# Allow the picker to navigate ABOVE search_dir. When true, ".." at the root and
+# the in-picker Alt-u key ascend past the floor; when false they're locked.
+allow_dir_escape = false
 
 # Attention notifications when an instance needs you (via the Claude Code hooks
 # installed by install.sh — fires on a permission/approval prompt; also the tmux
@@ -31,7 +36,7 @@ notify = desktop
 # For phone push over Tailscale via ntfy (https://ntfy.sh or self-hosted):
 # notify      = ntfy
 # ntfy_server = https://ntfy.sh
-# ntfy_topic  = my-claude-alerts
+# ntfy_topic  = my-claude-alerts   (or run: claude-notify --set-topic [slug])
 # For Pushover:
 # notify         = pushover
 # pushover_token = <app token>

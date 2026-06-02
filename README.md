@@ -110,11 +110,14 @@ directory by default. To pick one, use **New in dir…** (`prefix + D`) or
 `claude-new -c <dir>` / `claude-new -D` (prompts). **Reopen closed** also prompts
 for the directory (prefilled with the saved one) so you can override it.
 
-The directory prompt has **Tab path-completion**, and upgrades to a live **fzf
-typeahead picker** if `fzf` is installed (`sudo apt install fzf fd-find`) — handy
-on a phone. The picker searches recently-used dirs plus the tree under
-**`search_dir`** in config (default `$HOME`; set it to e.g. `~/src` to scope the
-list to your projects).
+With `fzf` installed (`sudo apt install fzf fd-find`), the picker **walks the tree
+one level at a time** under **`search_dir`** (config; default `$HOME` — set it to
+e.g. `~/_src/_dev`). Entries are shown **relative to that root** (e.g. `snap-stack/`),
+folders open on Enter, choosing a file selects its parent folder, and
+`[ choose THIS folder ]` selects the current one. Navigation is **floored at the
+root** — you can't go above it unless `allow_dir_escape = true` (then the in-picker
+**Alt-u** key, and `.. (up)` at the root, ascend past it). Without `fzf`, a
+Tab-completing path prompt, clamped the same way.
 
 ### Per-instance model & effort
 
@@ -152,6 +155,10 @@ Choose the backend in config (`notify = desktop | ntfy | pushover | none`);
 `ntfy`/`pushover` push to your **phone** (over Tailscale for self-hosted ntfy) at
 **high priority** with a 🔔 tag. The window is also flagged **yellow** in the
 status bar on a terminal bell. See `config.example`.
+
+For **ntfy**, supply your topic slug with `claude-notify --set-topic [slug]`
+(auto-generates a random one if omitted) — `install.sh` also prompts for it when
+`notify = ntfy` and none is set. Subscribe to that exact topic in the ntfy app.
 
 > Hooks are merged into `~/.claude/settings.json` (idempotent, backup kept) and
 > apply to instances started after install.

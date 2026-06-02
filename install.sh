@@ -103,6 +103,13 @@ if [ ! -f "$CSCONF/config" ]; then
 else
   echo "kept     $CSCONF/config (already present)"
 fi
+# If ntfy is the notify backend but no topic is set, prompt for one (interactive
+# only); blank auto-generates. Reuses the same logic as `claude-notify --set-topic`.
+. "$REPO/lib.sh"
+if [ "$(cs_config_get notify desktop)" = ntfy ] && [ -z "$(cs_config_get ntfy_topic '')" ] && [ -t 0 ]; then
+  printf 'ntfy topic/slug (blank = auto-generate): '; read -r _topic || _topic=""
+  "$REPO/claude-notify" --set-topic "$_topic" | sed 's/^/  /'
+fi
 sed "s#@BIN@#$BIN#g" "$REPO/tmux/bindings.conf.in" > "$CSCONF/bindings.conf"
 echo "wrote    $CSCONF/bindings.conf (tmux menu + keys)"
 case "$(tmux -V)" in *" 3."[2-9]*|*" "[4-9].*) : ;; *)

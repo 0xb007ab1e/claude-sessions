@@ -111,21 +111,27 @@ unchanged. Backups are kept; remove them with <code>claude-ls --clean-backups</c
 <code>claude</code>. Config is fixed under <code>~/.config/claude-sessions</code>
 (so tmux's <code>source-file</code> can find the bindings); state honors
 <code>$XDG_STATE_HOME</code>.</p></div>
-<div class="sym"><h3 id="cs-config"><code>cs_config_get(key, default)</code></h3>
-<p>Read a <code>key = value</code> (with <code>#</code> comments) from the config
-file; echoes <code>default</code> if absent/empty.</p></div>
+<div class="sym"><h3 id="cs-config"><code>cs_config_get(key, default) · cs_config_set(key, value)</code></h3>
+<p>Read / write a <code>key = value</code> (with <code>#</code> comments) in the
+config file; <code>cs_config_set</code> updates in place or appends.</p></div>
+<div class="sym"><h3 id="cs-dirhelp"><code>cs_dir_within(root, path) · cs_dir_rel(root, path)</code></h3>
+<p>Floor helpers for the picker: whether <code>path</code> is <code>root</code> or
+below it, and <code>path</code> rendered relative to <code>root</code>
+(<code>.</code> when equal).</p></div>
 <div class="sym"><h3 id="cs-scheme"><code>cs_scheme(arg)</code></h3>
 <p>Resolve the naming scheme by the precedence above.</p></div>
 <div class="sym"><h3 id="cs-pickdir"><code>cs_pick_dir(default)</code></h3>
-<p>Prompt for a directory and echo the choice. With <code>fzf</code> installed:
-a live <strong>typeahead</strong> picker over recently-used dirs (registry) plus
-the tree under the configured <code>search_dir</code> (config; default
-<code>$HOME</code> — point it at e.g. <code>~/src</code> to keep the list tight),
-streamed via <code>fd</code>/<code>find</code> so matches appear as they're found;
-typing a path not in the list and pressing Enter uses what you typed. Without
-fzf: <code>read -e</code> readline editing with <strong>Tab</strong> filename
-completion, prefilled with <code>default</code>. Used by <code>claude-new -D</code>
-and <code>claude-restore</code>.</p></div>
+<p>Pick a directory by <strong>walking the tree one level at a time</strong>,
+echoing the chosen absolute path. Entries are shown <strong>relative to the
+root</strong> (<code>search_dir</code>); directories end in <code>/</code>.
+Enter opens a folder; choosing a <em>file</em> selects its parent folder; the
+<code>[ choose THIS folder ]</code> row selects the current directory. Navigation
+is <strong>floored at the root</strong> — you can't go above it unless
+<code>allow_dir_escape = true</code>, which enables the in-picker <strong>Alt-u</strong>
+key (and <code>.. (up)</code> at the root) to ascend past the floor. Without
+<code>fzf</code>: a <code>read -e</code> path prompt, clamped to the root the
+same way. Used by <code>claude-new -D</code>, <code>claude-cd</code>, and
+<code>claude-restore</code>.</p></div>
 <div class="sym"><h3 id="cs-color"><code>cs_color_idx(i) · cs_color_hash(str)</code></h3>
 <p>Pick a palette color: by index (stable, wraps) or by hashing a string
 (stable per name).</p></div>
@@ -290,8 +296,11 @@ power-loss reboot reuses the previous snapshot (or none).</p></div>
 <p>Runs <code>claude-ls</code> or prints the cheat sheet, then waits for Enter —
 so a tmux <code>display-popup</code> binding stays readable. Keeps complex
 quoting out of the key bindings.</p></div>
-<div class="sym"><h3 id="cmd-notify"><code>claude-notify [event] [window] [session]</code></h3>
-<p>Send an "instance needs attention" notification. Wired to tmux's
+<div class="sym"><h3 id="cmd-notify"><code>claude-notify [event] [window] [session] · claude-notify --set-topic [slug]</code></h3>
+<p><code>--set-topic</code> sets the ntfy topic in config (auto-generates a random
+slug if omitted) — the end-user-friendly way to supply it; <code>install.sh</code>
+also prompts for it when <code>notify = ntfy</code> and no topic is set.
+Otherwise: send an "instance needs attention" notification. Wired to tmux's
 <code>alert-bell</code> hook, which fires when a Claude window rings the terminal
 bell (Claude rings it on completion / when it needs input — enable the bell in
 Claude). The bell also flags the window yellow in the status bar

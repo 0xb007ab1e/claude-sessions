@@ -6,6 +6,7 @@
 # desktop or pushes to your phone over Tailscale.
 #
 #   claude-notify [event] [window-name] [session]
+#   claude-notify --set-topic [slug]   set the ntfy topic (generate one if omitted)
 #
 # Config (~/.config/claude-sessions/config):
 #   notify          = desktop | ntfy | pushover | none   (default: desktop)
@@ -15,6 +16,19 @@
 #   pushover_user   = <user key>                         (required for pushover)
 set -eo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
+# Let the end user supply (or auto-generate) their ntfy topic slug.
+if [ "${1:-}" = "--set-topic" ]; then
+  slug="${2:-}"
+  if [ -z "$slug" ]; then
+    rand="$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom 2>/dev/null | head -c10 || true)"
+    slug="claude-${rand:-$$}"
+  fi
+  cs_config_set ntfy_topic "$slug"
+  echo "ntfy topic set to: $slug"
+  echo "subscribe to this exact topic in the ntfy app; ensure 'notify = ntfy' in config."
+  exit 0
+fi
 
 event="${1:-bell}"
 win="${2:-an instance}"

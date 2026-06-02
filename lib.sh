@@ -41,6 +41,24 @@ cs_config_get() {
   [ -n "$v" ] && printf '%s' "$v" || printf '%s' "$def"
 }
 
+# Set a config key (update in place, or append). cs_config_set KEY VALUE
+cs_config_set() {
+  local key="$1" val="$2" f tmp; f="$(cs_config_file)"
+  mkdir -p "$(cs_config_dir)"; touch "$f"
+  if grep -qE "^[[:space:]]*$key[[:space:]]*=" "$f"; then
+    tmp="$(mktemp)"
+    sed "s#^[[:space:]]*$key[[:space:]]*=.*#$key = $val#" "$f" > "$tmp" && mv "$tmp" "$f"
+  else
+    printf '%s = %s\n' "$key" "$val" >> "$f"
+  fi
+}
+
+# Path helpers for the directory picker's floor.
+# cs_dir_within ROOT PATH -> 0 if PATH is ROOT or below it.
+cs_dir_within() { case "$2/" in "$1/"*) return 0 ;; *) return 1 ;; esac; }
+# cs_dir_rel ROOT PATH -> PATH relative to ROOT ("." when equal).
+cs_dir_rel() { local r="$1" p="$2"; [ "$p" = "$r" ] && { printf '.'; return; }; p="${p#"$r"/}"; printf '%s' "$p"; }
+
 # Resolve the naming scheme. Precedence: explicit arg > env > config > "nato".
 cs_scheme() {
   local s="${1:-}"
@@ -49,37 +67,67 @@ cs_scheme() {
   cs_config_get name_scheme nato
 }
 
-# Prompt for a directory with completion/typeahead, echoing the chosen path.
-# With fzf: a live typeahead picker over recently-used dirs (registry) + the
-# directory tree under $HOME; typing a path not in the list uses what you typed.
-# Without fzf: readline editing with TAB filename completion (prefilled).
-# cs_pick_dir [default]
+# Pick a directory by walking the tree one level at a time, echoing the chosen
+# absolute path. Entries are shown RELATIVE to the root (search_dir). Navigation
+# is floored at the root: you cannot go above it unless `allow_dir_escape = true`
+# in config, in which case the in-picker key Alt-u (and ".." at the root) ascends
+# past it. Folders open on Enter; choosing a file selects its parent folder; the
+# "[ choose THIS folder ]" row selects the current directory.
+# cs_pick_dir [default-start-dir]
 cs_pick_dir() {
-  local def="${1:-$PWD}" root
+  local def="${1:-$PWD}" root escape cur
   root="$(cs_config_get search_dir "$HOME")"; root="${root/#\~/$HOME}"
-  [ -d "$root" ] || root="$HOME"
-  if command -v fzf >/dev/null 2>&1; then
-    local lister out sel q
-    if command -v fd >/dev/null 2>&1;     then lister='fd -td -d4 -H -E .git -E node_modules . "$root"'
-    elif command -v fdfind >/dev/null 2>&1; then lister='fdfind -td -d4 -H -E .git -E node_modules . "$root"'
-    else lister='find "$root" -maxdepth 4 -type d -not -path "*/.*" -not -path "*/node_modules/*"'; fi
-    out="$( { printf '%s\n' "$def"
-              cs_rows | awk -F'\t' 'NF{print $5}'   # recently-used dirs from the registry
-              eval "$lister" 2>/dev/null
-            } | awk 'NF && !seen[$0]++' \
-            | fzf --print-query --query "$def" --prompt 'directory> ' \
-                  --height 90% --reverse --no-multi 2>/dev/null )"
-    sel="$(printf '%s\n' "$out" | sed -n '2p')"   # chosen list item (if any)
-    q="$(printf '%s\n'  "$out" | sed -n '1p')"     # what was typed
-    printf '%s' "${sel:-${q:-$def}}"
-    return
+  root="$(cd "$root" 2>/dev/null && pwd -P)" || root="$HOME"
+  escape="$(cs_config_get allow_dir_escape false)"
+  def="${def/#\~/$HOME}"; def="$(cd "$def" 2>/dev/null && pwd -P)" || def="$root"
+  if cs_dir_within "$root" "$def"; then cur="$def"; else cur="$root"; fi
+
+  if ! command -v fzf >/dev/null 2>&1; then          # fallback: type a path
+    local _d
+    bind 'set completion-ignore-case on' 2>/dev/null || true
+    read -e -i "$cur" -r -p "directory (Tab completes): " _d || _d="$cur"
+    _d="${_d/#\~/$HOME}"; _d="$(cd "$_d" 2>/dev/null && pwd -P)" || _d="$cur"
+    if [ "$escape" != true ] && ! cs_dir_within "$root" "$_d"; then _d="$root"; fi
+    printf '%s' "$_d"; return
   fi
-  local _d
-  bind 'set show-all-if-ambiguous on'        2>/dev/null || true
-  bind 'set completion-ignore-case on'       2>/dev/null || true
-  bind 'set mark-directories on'             2>/dev/null || true
-  read -e -i "$def" -r -p "directory (Tab completes): " _d || _d="$def"
-  printf '%s' "${_d:-$def}"
+
+  local CHOOSE="[ choose THIS folder ]" UP=".. (up)" lister relcur list hdr out key sel
+  while :; do
+    if   command -v fd     >/dev/null 2>&1; then lister=(fd -d1 -H -E .git -E node_modules . "$cur")
+    elif command -v fdfind >/dev/null 2>&1; then lister=(fdfind -d1 -H -E .git -E node_modules . "$cur")
+    else lister=(find "$cur" -mindepth 1 -maxdepth 1 -not -name .git -not -name node_modules); fi
+    relcur="$(cs_dir_rel "$root" "$cur")"
+    list="$( {
+        printf '%s\n' "$CHOOSE"
+        if [ "$cur" != "$root" ] || [ "$escape" = true ]; then printf '%s\n' "$UP"; fi
+        "${lister[@]}" 2>/dev/null | while IFS= read -r p; do
+          p="${p%/}"                       # fd appends '/' to dirs; normalize
+          if [ -d "$p" ]; then printf '%s/\n' "$(cs_dir_rel "$root" "$p")"
+          else printf '%s\n' "$(cs_dir_rel "$root" "$p")"; fi
+        done | LC_ALL=C sort
+      } )"
+    hdr="root: ${root}    here: ${relcur}    Enter: open/select · Alt-u: above root$([ "$escape" = true ] && echo ' (on)' || echo ' (locked)')"
+    out="$(printf '%s\n' "$list" | fzf --expect=alt-u --prompt="dir> " --height=90% \
+            --reverse --no-multi --header="$hdr" 2>/dev/null)" || return 0
+    key="$(printf '%s\n' "$out" | sed -n 1p)"; sel="$(printf '%s\n' "$out" | sed -n 2p)"
+    [ -z "$key" ] && [ -z "$sel" ] && return 0       # ESC cancels
+    if [ "$key" = alt-u ]; then                       # override: ascend past root
+      [ "$escape" = true ] && cur="$(dirname "$cur")"; continue
+    fi
+    case "$sel" in
+      "$CHOOSE") printf '%s' "$cur"; return ;;
+      "$UP")
+        if [ "$cur" != "$root" ]; then cur="$(dirname "$cur")"
+        elif [ "$escape" = true ]; then cur="$(dirname "$cur")"; fi ;;
+      "") : ;;
+      *)  # entries are immediate children of cur; reconstruct from cur + basename
+          # (robust whether displayed relative to root or absolute when above it)
+        local name="${sel%/}"; name="${name##*/}"; local abs="$cur/$name"
+        if   [ -d "$abs" ]; then cur="$abs"
+        elif [ -f "$abs" ]; then printf '%s' "$cur"; return
+        fi ;;
+    esac
+  done
 }
 
 # --- palettes (256-color codes shared by tmux `colourN` and ANSI 38;5;N) -----

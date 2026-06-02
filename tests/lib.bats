@@ -124,3 +124,24 @@ setup() {
   [ "$(cs_field 5 "$(cs_rows)")" = "/tmp/proj one" ]        # data preserved
   ls "$(cs_state_dir)"/registry.tsv.bak.* >/dev/null 2>&1   # backup made
 }
+
+@test "cs_config_set updates existing and appends missing keys" {
+  printf 'name_scheme = nato\n' > "$HOME/.config/claude-sessions/config"
+  cs_config_set name_scheme random          # update in place
+  cs_config_set ntfy_topic abc123           # append
+  [ "$(cs_config_get name_scheme nato)" = random ]
+  [ "$(cs_config_get ntfy_topic '')" = abc123 ]
+}
+
+@test "cs_dir_within: floor boundary" {
+  cs_dir_within /a/b /a/b           # equal -> inside
+  cs_dir_within /a/b /a/b/c/d       # below  -> inside
+  ! cs_dir_within /a/b /a           # above  -> outside
+  ! cs_dir_within /a/b /a/bc        # sibling prefix -> outside
+}
+
+@test "cs_dir_rel: path relative to root" {
+  [ "$(cs_dir_rel /a/b /a/b)"     = "." ]
+  [ "$(cs_dir_rel /a/b /a/b/c)"   = "c" ]
+  [ "$(cs_dir_rel /a/b /a/b/c/d)" = "c/d" ]
+}
