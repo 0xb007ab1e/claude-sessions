@@ -58,6 +58,13 @@ cs_config_set() {
 cs_dir_within() { case "$2/" in "$1/"*) return 0 ;; *) return 1 ;; esac; }
 # cs_dir_rel ROOT PATH -> PATH relative to ROOT ("." when equal).
 cs_dir_rel() { local r="$1" p="$2"; [ "$p" = "$r" ] && { printf '.'; return; }; p="${p#"$r"/}"; printf '%s' "$p"; }
+# Preferred picker start: $PWD if within ROOT (echo it, return 0); otherwise echo
+# ROOT and return 1 so the caller can warn + reprompt.  cs_pick_start ROOT
+cs_pick_start() {
+  local root="$1" here; here="$(pwd -P 2>/dev/null)" || here="$root"
+  if cs_dir_within "$root" "$here"; then printf '%s' "$here"; return 0
+  else printf '%s' "$root"; return 1; fi
+}
 
 # Resolve the naming scheme. Precedence: explicit arg > env > config > "nato".
 cs_scheme() {
@@ -75,12 +82,14 @@ cs_scheme() {
 # "[ choose THIS folder ]" row selects the current directory.
 # cs_pick_dir [default-start-dir]
 cs_pick_dir() {
-  local def="${1:-$PWD}" root escape cur
+  local root escape cur warn=""
   root="$(cs_config_get search_dir "$HOME")"; root="${root/#\~/$HOME}"
   root="$(cd "$root" 2>/dev/null && pwd -P)" || root="$HOME"
   escape="$(cs_config_get allow_dir_escape false)"
-  def="${def/#\~/$HOME}"; def="$(cd "$def" 2>/dev/null && pwd -P)" || def="$root"
-  if cs_dir_within "$root" "$def"; then cur="$def"; else cur="$root"; fi
+  # $PWD is the preferred start; if it's outside the root, warn and start at root.
+  if cur="$(cs_pick_start "$root")"; then warn=""
+  else warn="current directory is outside the picker root ($root) — starting at root"
+       printf 'claude: %s\n' "$warn" >&2; fi
 
   if ! command -v fzf >/dev/null 2>&1; then          # fallback: type a path
     local _d
@@ -107,8 +116,10 @@ cs_pick_dir() {
         done | LC_ALL=C sort
       } )"
     hdr="root: ${root}    here: ${relcur}    Enter: open/select · Alt-u: above root$([ "$escape" = true ] && echo ' (on)' || echo ' (locked)')"
+    [ -n "$warn" ] && hdr="⚠ ${warn}"$'\n'"$hdr"   # banner on the first render
     out="$(printf '%s\n' "$list" | fzf --expect=alt-u --prompt="dir> " --height=90% \
             --reverse --no-multi --header="$hdr" 2>/dev/null)" || return 0
+    warn=""   # show the warning only once
     key="$(printf '%s\n' "$out" | sed -n 1p)"; sel="$(printf '%s\n' "$out" | sed -n 2p)"
     [ -z "$key" ] && [ -z "$sel" ] && return 0       # ESC cancels
     if [ "$key" = alt-u ]; then                       # override: ascend past root

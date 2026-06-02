@@ -112,7 +112,9 @@ for the directory (prefilled with the saved one) so you can override it.
 
 With `fzf` installed (`sudo apt install fzf fd-find`), the picker **walks the tree
 one level at a time** under **`search_dir`** (config; default `$HOME` — set it to
-e.g. `~/_src/_dev`). Entries are shown **relative to that root** (e.g. `snap-stack/`),
+e.g. `~/_src/_dev`). It **starts at your current directory** when that's under the
+root; otherwise it **warns and starts at the root**. Entries are shown **relative
+to that root** (e.g. `snap-stack/`),
 folders open on Enter, choosing a file selects its parent folder, and
 `[ choose THIS folder ]` selects the current one. Navigation is **floored at the
 root** — you can't go above it unless `allow_dir_escape = true` (then the in-picker
