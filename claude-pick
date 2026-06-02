@@ -11,9 +11,10 @@ source "$HERE/lib.sh"
 
 cs_reconcile
 S="$(cs_session)"
-reg="$(cs_registry)"
+reg="$(mktemp)"; trap 'rm -f "$reg"' EXIT   # JSONL rendered to legacy TSV for awk
+cs_rows > "$reg"
 now="$(date +%s)"
-[ -f "$reg" ] || { echo "no instances yet."; printf '\n[enter]'; read -r _; exit 0; }
+[ -s "$reg" ] || { echo "no instances yet."; printf '\n[enter]'; read -r _; exit 0; }
 
 if ! command -v fzf >/dev/null 2>&1; then
   "$HERE/claude-ls"; printf '\n\033[2m[fzf not installed — read-only list; enter to close]\033[0m '; read -r _; exit 0

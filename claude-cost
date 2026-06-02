@@ -9,7 +9,7 @@ source "$HERE/lib.sh"
 command -v python3 >/dev/null 2>&1 || { echo "claude-cost: needs python3" >&2; exit 1; }
 
 cs_reconcile
-reg="$(cs_registry)"; [ -f "$reg" ] || { echo "no instances yet."; exit 0; }
+rows="$(cs_rows)"; [ -n "$rows" ] || { echo "no instances yet."; exit 0; }
 
 # Collect "name <TAB> transcript-file" for active instances.
 pairs="$(mktemp)"
@@ -18,9 +18,11 @@ while IFS= read -r row; do
   name="$(cs_field 1 "$row")"; cwd="$(cs_field 5 "$row")"; tid="$(cs_field 9 "$row")"
   pdir="$(cs_project_dir "$cwd")"
   if [ -n "$tid" ] && [ -f "$pdir/$tid.jsonl" ]; then file="$pdir/$tid.jsonl"
-  else file="$(find "$pdir" -maxdepth 1 -name '*.jsonl' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)"; fi
+  elif [ -d "$pdir" ]; then   # guard: find on a missing dir fails under pipefail
+    file="$(find "$pdir" -maxdepth 1 -name '*.jsonl' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)"
+  else file=""; fi
   [ -n "$file" ] && [ -f "$file" ] && printf '%s\t%s\n' "$name" "$file" >> "$pairs"
-done < "$reg"
+done <<<"$rows"
 
 python3 - "$pairs" <<'PY'
 import json, sys

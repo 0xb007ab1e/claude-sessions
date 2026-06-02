@@ -6,13 +6,7 @@
 set -eo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
-reg="$(cs_registry)"
 snap="$(cs_state_dir)/last-session.tsv"
 mkdir -p "$(cs_state_dir)"
-
-if [ -f "$reg" ]; then
-  awk -F'\t' -v OFS='\t' '$7=="active"{print $1, $5}' "$reg" > "$snap"
-else
-  : > "$snap"
-fi
+cs_rows | awk -F'\t' -v OFS='\t' '$7=="active"{print $1, $5}' > "$snap"
 echo "snapshot: $(wc -l < "$snap" 2>/dev/null || echo 0) active instance(s) -> $snap"

@@ -24,6 +24,11 @@
 instances inside a single, persistent tmux session — reachable from a phone over
 Tailscale + Termux, tuned for a small touchscreen. One tmux session, one Claude
 per window. Portable: no hardcoded users, paths, hosts, or terminals.</p>
+<p><strong>Requirements:</strong> <code>tmux</code> ≥ 3.2 and <code>jq</code> are
+required (<code>jq</code> backs the JSONL instance registry; <code>install.sh</code>
+checks for both). <code>flock</code> (util-linux) is used for safe registry
+migrations. Optional: <code>bash-completion</code>, <code>fzf</code>,
+<code>notify-send</code>/<code>curl</code>, and a terminal emulator.</p>
 
 <h2>Files</h2>
 <table>
@@ -73,19 +78,31 @@ status bar and the list. The end user picks the convention.</p>
 &gt; <code>~/.config/claude-sessions/config</code> (<code>name_scheme</code>) &gt;
 <code>nato</code>. Colors are 256-color codes shared by tmux (<code>colourN</code>)
 and the ANSI list output.</p>
-<p>The <strong>registry</strong> is a TSV at
-<code>$XDG_STATE_HOME/claude-sessions/registry.tsv</code> (default
-<code>~/.local/state/…</code>), one row per instance:
-<code>name · color · session · window_id · cwd · started · status · ended · transcript · model · effort</code>.
-A row flips to <code>closed</code> when its window disappears — detected on
-demand by <code>claude-ls</code> and promptly by the <code>window-unlinked</code>
-tmux hook. At most one <code>active</code> row exists per window id. The
-<code>transcript</code> column is the instance's Claude conversation (session)
-id, linked best-effort after launch, so a closed instance can be reopened on the
-<em>exact</em> conversation. The optional <code>model</code> / <code>effort</code>
-columns record a per-instance <code>--model</code> / <code>--effort</code>
-override (shown as a <code>{model&nbsp;@effort}</code> badge), re-applied when the
-instance is reopened or moved.</p>
+<p>The <strong>registry</strong> is <strong>JSONL</strong> (one JSON object per
+line, <code>jq</code> for all read/write) at
+<code>$XDG_STATE_HOME/claude-sessions/registry.jsonl</code> (default
+<code>~/.local/state/…</code>). Each record:
+<code>{v, name, color, session, window_id, cwd, started, status, ended, transcript, model, effort}</code>
+— <code>v</code> is the schema version (<code>CS_SCHEMA_VERSION</code>);
+<code>ended</code>/<code>transcript</code>/<code>model</code>/<code>effort</code>
+may be <code>null</code>. A record flips to <code>closed</code> when its window
+disappears — detected on demand by <code>claude-ls</code> and promptly by the
+<code>window-unlinked</code> tmux hook. At most one <code>active</code> record
+exists per window id. The <code>transcript</code> is the instance's Claude
+conversation (session) id, linked best-effort after launch, so a closed instance
+can be reopened on the <em>exact</em> conversation. <code>model</code> /
+<code>effort</code> record a per-instance <code>--model</code> /
+<code>--effort</code> override (shown as a <code>{model&nbsp;@effort}</code>
+badge), re-applied when the instance is reopened or moved.</p>
+<p><strong>Versioning &amp; migration.</strong> <code>cs_open</code> checks the
+on-disk version on first access. A legacy v1 TSV (<code>registry.tsv</code>) or a
+JSONL with <code>v</code> &lt; current is migrated <em>automatically</em> under a
+<code>flock</code>: the old file is backed up (<code>*.bak.&lt;ts&gt;</code>),
+every record is upgraded to the current schema, and the result is validated
+against the backup (record count + <code>name|window_id|started</code> key set)
+before replacing the live file. Tools render records back to the legacy
+tab-separated column order via <code>cs_rows</code>, so per-record access is
+unchanged. Backups are kept; remove them with <code>claude-ls --clean-backups</code>.</p>
 
 <h2>lib.sh — functions</h2>
 <p>Shared, sourced by every tool (never executed directly).</p>
@@ -120,12 +137,28 @@ rows — so allocation never collides.</p></div>
 <code>cs_used_names()</code>.</p></div>
 <div class="sym"><h3 id="cs-apply"><code>cs_apply_window(target, name, color)</code></h3>
 <p>Rename a window and set its (and its current-) status style to the color.</p></div>
-<div class="sym"><h3 id="cs-record"><code>cs_record_active(name, color, window_id, cwd)</code></h3>
-<p>Append an <code>active</code> registry row, first dropping any existing active
-row for the same window id (a reused window supersedes its old row).</p></div>
+<div class="sym"><h3 id="cs-rows"><code>cs_rows()</code></h3>
+<p>Render the JSONL registry (via <code>jq</code>) back to the legacy
+tab-separated column order (name, color, session, window_id, cwd, started,
+status, ended, transcript, model, effort), empty fields preserved. The single
+read surface for <code>awk</code>/<code>cut</code>-based consumers; calls
+<code>cs_open</code> first.</p></div>
+<div class="sym"><h3 id="cs-open"><code>cs_open()</code></h3>
+<p>Ensure the registry exists and is at <code>CS_SCHEMA_VERSION</code>, migrating
+lazily on first access (see Versioning &amp; migration). Cheap when current.</p></div>
+<div class="sym"><h3 id="cs-migrate"><code>cs_migrate() · cs_clean_backups()</code></h3>
+<p><code>cs_migrate</code> backs up, upgrades each record (legacy TSV→JSONL, or
+JSONL <code>v</code>-bump), and validates against the backup before replacing the
+file; on validation failure it leaves the registry untouched.
+<code>cs_clean_backups</code> removes the kept <code>*.bak.*</code> backups
+(exposed as <code>claude-ls --clean-backups</code>).</p></div>
+<div class="sym"><h3 id="cs-record"><code>cs_record_active(name, color, window_id, cwd [,transcript,model,effort])</code></h3>
+<p>Append an <code>active</code> JSONL record (built with <code>jq</code> for
+correct escaping), first dropping any existing active record for the same window
+id (a reused window supersedes its old one).</p></div>
 <div class="sym"><h3 id="cs-reconcile"><code>cs_reconcile()</code></h3>
-<p>Mark <code>active</code> rows <code>closed</code> (stamping the end time) when
-their window no longer exists, then run <code>cs_link_transcripts</code>.</p></div>
+<p>Mark <code>active</code> records <code>closed</code> (stamping the end time)
+when their window no longer exists, then run <code>cs_link_transcripts</code>.</p></div>
 <div class="sym"><h3 id="cs-field"><code>cs_field(n, row)</code></h3>
 <p>Extract the nth tab field of a registry row with <code>cut</code> — preserving
 empty fields. (Plain <code>IFS=$'\t' read</code> collapses consecutive tabs, so it
@@ -151,11 +184,12 @@ Best-effort — if the id can't be determined, restore falls back to
 drop older closed history.</p></div>
 
 <h2>Instance commands</h2>
-<div class="sym"><h3 id="cmd-ls"><code>claude-ls [--reconcile-only | --prune [N]]</code></h3>
+<div class="sym"><h3 id="cmd-ls"><code>claude-ls [--reconcile-only | --prune [N] | --clean-backups]</code></h3>
 <p>Reconcile, then print active and recently-closed instances with colored
 name dots, directory, and uptime/closed-ago. <code>--reconcile-only</code> just
 updates the registry (used by the tmux close hook); <code>--prune [N]</code>
-trims closed history to the newest N (default 50).</p></div>
+trims closed history to the newest N (default 50);
+<code>--clean-backups</code> removes registry migration backups.</p></div>
 <div class="sym"><h3 id="cmd-pick"><code>claude-pick</code></h3>
 <p>The interactive, scrollable, type-to-filter picker behind <strong>List
 instances</strong> (<code>prefix L</code> / menu <code>l</code>). Selecting an

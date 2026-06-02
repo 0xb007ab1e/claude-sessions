@@ -12,8 +12,7 @@ wid="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
 [ -n "$wid" ] || { echo "claude-cd: run from inside the session (the instance to move)"; exit 1; }
 
 cs_reconcile                                   # ensure the active row's transcript is linked
-reg="$(cs_registry)"
-row="$(awk -F'\t' -v w="$wid" '$4==w && $7=="active"{print; exit}' "$reg")"
+row="$(cs_rows | awk -F'\t' -v w="$wid" '$4==w && $7=="active"{print; exit}')"
 name="$(cs_field 1 "$row")"; olddir="$(cs_field 5 "$row")"; transcript="$(cs_field 9 "$row")"
 model="$(cs_field 10 "$row")"; effort="$(cs_field 11 "$row")"
 name="${name:-claude}"; olddir="${olddir:-$PWD}"

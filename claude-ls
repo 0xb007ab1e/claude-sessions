@@ -2,10 +2,14 @@
 # claude-ls — list Claude instances (active + recently closed) with names and
 # colors, reconciling the registry against live tmux windows first.
 #
-#   claude-ls                 print the colored list
+#   claude-ls                    print the colored list
 #   claude-ls --reconcile-only   update the registry only (used by a tmux hook)
+#   claude-ls --prune [N]        trim closed history to the newest N (default 50)
+#   claude-ls --clean-backups    remove registry migration backups
 set -eo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
+[ "${1:-}" = "--clean-backups" ] && { cs_clean_backups; echo "removed registry migration backups."; exit 0; }
 
 cs_reconcile
 [ "${1:-}" = "--reconcile-only" ] && exit 0
@@ -13,7 +17,15 @@ if [ "${1:-}" = "--prune" ]; then
   cs_prune "${2:-50}"; echo "pruned closed history (kept newest ${2:-50})"; exit 0
 fi
 
-reg="$(cs_registry)"
+# One-time notice after an auto-migration (never shown inside the hook above).
+if [ -f "$(cs_state_dir)/.migrated" ]; then
+  printf '\033[2m(registry upgraded to a new format; a backup was kept — remove it with: claude-ls --clean-backups)\033[0m\n\n'
+fi
+
+# Render the JSONL registry to a temp TSV (legacy column order) so the existing
+# awk passes — including the two-file status-map join below — are unchanged.
+reg="$(mktemp)"; trap 'rm -f "$reg"' EXIT
+cs_rows > "$reg"
 now="$(date +%s)"
 
 printf '\033[1mclaude instances\033[0m — session: %s\n\n' "$(cs_session)"
