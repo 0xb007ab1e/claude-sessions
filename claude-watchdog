@@ -33,8 +33,16 @@ fi
 # something the user deliberately closed.
 tmux list-panes -t "$S:$wid" >/dev/null 2>&1 || exit 0
 
-name="$(cs_field 1 "$row")"; cwd="$(cs_field 5 "$row")"
+name="$(cs_field 1 "$row")"; cwd="$(cs_field 5 "$row")"; started="$(cs_field 6 "$row")"
 transcript="$(cs_field 9 "$row")"; model="$(cs_field 10 "$row")"; effort="$(cs_field 11 "$row")"
+
+# Safety net: if the instance crashed before its transcript was linked, try to
+# link it now (the conversation's *.jsonl exists once Claude has run at all) so
+# we resume the exact conversation rather than falling back to --continue.
+if [ -z "$transcript" ]; then
+  transcript="$(cs_find_transcript "$cwd" "$started")"
+  [ -n "$transcript" ] && cs_link_transcripts   # persist into the registry for later crashes
+fi
 
 # Crash-loop budget: count restarts within the rolling window.
 maxr="$(cs_config_get watchdog_max_retries 3)"

@@ -303,7 +303,10 @@ power-loss reboot reuses the previous snapshot (or none).</p></div>
 <p><strong>Opt-in</strong> (config <code>watchdog = true</code>). Invoked by the
 tmux <code>pane-died</code> hook. Restarts a <strong>crashed</strong> managed
 instance <strong>in place</strong> (<code>respawn-pane</code>, resuming its
-conversation from the registry — transcript, dir, model, effort). A clean exit
+conversation from the registry — transcript, dir, model, effort). If the
+instance crashed before its transcript was linked, it <strong>re-links at crash
+time</strong> (the conversation's <code>*.jsonl</code> exists once Claude has
+run) so it still resumes the exact conversation rather than <code>--continue</code>. A clean exit
 (status 0) just closes the lingering dead pane; an intentional close (window
 gone / row not <code>active</code>) is ignored. Crash-loop protection:
 <code>watchdog_max_retries</code> within <code>watchdog_window</code> seconds with
