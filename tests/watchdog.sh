@@ -65,4 +65,16 @@ rm -rf "$XDG_STATE_HOME/claude-sessions/watchdog"; : > "$TMUX_LOG"; "$WD" @999 1
 if grep -qE "respawn-pane|kill-window" "$TMUX_LOG"; then echo "FAIL [unmanaged window acted on]"; rc=1
 else echo "PASS [unmanaged window -> no-op]"; fi
 
+# 5) crash with NO linked transcript but a *.jsonl exists -> relink at crash time
+#    and resume the EXACT conversation (safety net).
+export CLAUDE_CONFIG_DIR="$WORK/cc"
+projB="$WORK/projB"; mkdir -p "$projB"
+enc="$(printf '%s' "$projB" | sed 's#[^A-Za-z0-9]#-#g')"
+mkdir -p "$CLAUDE_CONFIG_DIR/projects/$enc"; : > "$CLAUDE_CONFIG_DIR/projects/$enc/relinked-uuid.jsonl"
+( source "$REPO/lib.sh"; cs_record_active beta 40 @6 "$projB" "" "" "" )   # empty transcript
+rm -rf "$XDG_STATE_HOME/claude-sessions/watchdog"; : > "$TMUX_LOG"; "$WD" @6 1
+if grep -q "respawn-pane -t _wd:@6 -c $projB exec claude --resume relinked-uuid" "$TMUX_LOG"; then
+  echo "PASS [crash w/o transcript -> relinked + resume exact]"
+else echo "FAIL [relink]"; cat "$TMUX_LOG"; rc=1; fi
+
 exit $rc
