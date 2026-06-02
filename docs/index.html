@@ -120,12 +120,14 @@ below it, and <code>path</code> rendered relative to <code>root</code>
 (<code>.</code> when equal).</p></div>
 <div class="sym"><h3 id="cs-scheme"><code>cs_scheme(arg)</code></h3>
 <p>Resolve the naming scheme by the precedence above.</p></div>
-<div class="sym"><h3 id="cs-pickdir"><code>cs_pick_dir()</code> · <code>cs_pick_start(root)</code></h3>
+<div class="sym"><h3 id="cs-pickdir"><code>cs_pick_dir([default])</code> · <code>cs_pick_start(root [,default])</code></h3>
 <p>Pick a directory by <strong>walking the tree one level at a time</strong>,
-echoing the chosen absolute path. It <strong>starts at <code>$PWD</code></strong>
-when that's within the root; otherwise it <strong>warns</strong> (stderr + a
-one-time header banner) and starts at the root (<code>cs_pick_start</code> returns
-the start and signals which case). Entries are shown <strong>relative to the
+echoing the chosen absolute path. Start precedence: <strong><code>$PWD</code> if
+within root → the caller's <code>default</code> if within root</strong> (e.g. an
+instance's current/saved dir, so <code>claude-cd</code>/<code>claude-restore</code>
+open where that instance is) <strong>→ otherwise warn</strong> (stderr + a one-time
+header banner) and start at the root. <code>cs_pick_start</code> returns the start
+and signals (rc 0/1) which case. Entries are shown <strong>relative to the
 root</strong> (<code>search_dir</code>); directories end in <code>/</code>.
 Enter opens a folder; choosing a <em>file</em> selects its parent folder; the
 <code>[ choose THIS folder ]</code> row selects the current directory. Navigation
@@ -167,7 +169,8 @@ correct escaping), first dropping any existing active record for the same window
 id (a reused window supersedes its old one).</p></div>
 <div class="sym"><h3 id="cs-reconcile"><code>cs_reconcile()</code></h3>
 <p>Mark <code>active</code> records <code>closed</code> (stamping the end time)
-when their window no longer exists, then run <code>cs_link_transcripts</code>.</p></div>
+when their window no longer exists, <strong>sweep stale per-window status files</strong>
+for windows that are gone, then run <code>cs_link_transcripts</code>.</p></div>
 <div class="sym"><h3 id="cs-field"><code>cs_field(n, row)</code></h3>
 <p>Extract the nth tab field of a registry row with <code>cut</code> — preserving
 empty fields. (Plain <code>IFS=$'\t' read</code> collapses consecutive tabs, so it
