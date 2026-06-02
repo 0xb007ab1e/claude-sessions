@@ -11,7 +11,7 @@ cs_reconcile
 
 # Most recent closed instances first (de-dup by name).
 # Each row: name<TAB>cwd<TAB>transcript<TAB>model<TAB>effort
-mapfile -t rows < <(cs_rows | awk -F'\t' '$7=="closed"{print $8"\t"$1"\t"$5"\t"$9"\t"$10"\t"$11}' \
+mapfile -t rows < <(cs_rows | awk -F'\t' '$7=="closed" && $12!="shell"{print $8"\t"$1"\t"$5"\t"$9"\t"$10"\t"$11}' \
                     | sort -rn | awk -F'\t' '!seen[$2]++{print $2"\t"$3"\t"$4"\t"$5"\t"$6}')
 [ "${#rows[@]}" -gt 0 ] || { echo "no closed instances to reopen."; exit 0; }
 

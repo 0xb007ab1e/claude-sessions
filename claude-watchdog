@@ -21,6 +21,7 @@ restart_on="$(cs_config_get watchdog_restart_on crash)"         # crash | always
 # so a closed/absent row means "don't touch".
 row="$(cs_rows | awk -F'\t' -v w="$wid" '$4==w && $7=="active"{print; exit}')"
 [ -n "$row" ] || exit 0
+[ "$(cs_field 12 "$row")" = shell ] && exit 0   # ephemeral shells aren't watched/respawned
 
 # Clean exit (status 0): close the lingering dead pane to match normal UX.
 if [ "$status" = 0 ] && [ "$restart_on" != always ]; then

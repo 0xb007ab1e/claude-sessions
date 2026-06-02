@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # claude-shell — open an interactive shell window in the session, for commands
 # Claude can't run itself (sudo, interactive logins/TUIs, etc.). Opens in the
-# current window's directory by default. Not recorded in the instance registry.
+# current window's directory by default. Registered as an EPHEMERAL shell
+# (kind=shell) grouped under the instance it was launched from (inherits its
+# colour, placed adjacent); shown indented in claude-ls; not watched/respawned;
+# closes on exit (left until then).
 #
 #   claude-shell [-c DIR] [-D] [-n NAME]
 #     -c DIR   working directory (default: current window's dir, else $PWD)
@@ -35,9 +38,23 @@ DIR="${DIR/#\~/$HOME}"
 S="$(cs_session)"
 tmux -f "$HERE/tmux.conf" has-session -t "$S" 2>/dev/null || tmux new-session -d -s "$S"
 
-# A window with no command runs the user's interactive login shell.
-wid="$(tmux new-window -t "$S:" -c "$DIR" -P -F '#{window_id}')"
+# Parent = the window active when claude-shell was invoked, so the shell groups
+# under that instance and inherits its colour. If there's no managed parent
+# (e.g. launched from the boot shell), fall back to a standalone grey shell.
+parent="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
+pcolor="$(cs_rows | awk -F'\t' -v p="$parent" '$4==p && $7=="active"{print $2; exit}')"
+[ -n "$pcolor" ] || { pcolor=244; parent=""; }
+
+# A window with no command runs the user's interactive login shell. Place it
+# right after its parent (contiguous = grouped, taskbar-style).
+if [ -n "$parent" ]; then
+  wid="$(tmux new-window -a -t "$S:$parent" -c "$DIR" -P -F '#{window_id}')"
+else
+  wid="$(tmux new-window -t "$S:" -c "$DIR" -P -F '#{window_id}')"
+fi
 name="${NAME:-sh:$(basename "$DIR")}"
-cs_apply_window "$S:$wid" "$name" 244     # grey, to distinguish from Claude instances
+cs_apply_window "$S:$wid" "$name" "$pcolor"
+tmux set-window-option -t "$S:$wid" remain-on-exit off 2>/dev/null || true  # ephemeral: close on exit, not watched
+cs_record_active "$name" "$pcolor" "$wid" "$DIR" "" "" "" shell "$parent"   # kind=shell, grouped under parent
 tmux select-window -t "$S:$wid"           # follow the client to it
-echo "opened shell '$name' in $DIR"
+echo "opened shell '$name' in $DIR${parent:+ (grouped with its instance)}"

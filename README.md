@@ -105,6 +105,11 @@ CLI equivalents: `claude-pick` (selectable list), `claude-new [-m resume|continu
 directory, resuming), `claude-shell` (an interactive shell for commands Claude
 can't run — `sudo`, logins, etc.). Trim closed history with `claude-ls --prune [N]`.
 
+**Ephemeral shells are grouped.** `claude-shell` (or Shell ▸ in the menu) opens
+**grouped under the instance** you launched it from — adjacent window, same
+color, indented beneath it in `claude-ls` — for when Claude suggests a `! sudo …`
+command. Shells aren't watched/restarted and just close when you exit them.
+
 **Choosing the directory:** a new instance opens in the current window's
 directory by default. To pick one, use **New in dir…** (`prefix + D`) or
 `claude-new -c <dir>` / `claude-new -D` (prompts). **Reopen closed** also prompts
