@@ -176,6 +176,16 @@ Run it manually anytime (`claude-restore-all`) or from the menu ("Restore last
 session"). Snapshots are taken on graceful stop; a hard power-loss reboot reuses
 the previous snapshot.
 
+### Auto-restart crashed instances (watchdog, opt-in)
+
+With `watchdog = true` in config (then re-run `./install.sh`), a crashed instance
+is **restarted in place**, resuming its conversation — managed windows get
+`remain-on-exit on`, and a `pane-died` hook runs `claude-watchdog`. Only
+**crashes** (exit ≠ 0) restart; a clean `/exit` just closes the pane, and
+intentional closes are ignored. After repeated crashes
+(`watchdog_max_retries` within `watchdog_window`, exponential `watchdog_backoff`)
+it **gives up and notifies once**. Default is off, so the normal UX is unchanged.
+
 Manage the service:
 
 ```bash

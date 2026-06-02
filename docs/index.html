@@ -42,6 +42,7 @@ migrations. Optional: <code>bash-completion</code>, <code>fzf</code>,
   <tr><td><a href="../claude-notify"><code>claude-notify</code></a></td><td>Notify (desktop / ntfy / Pushover) when an instance needs attention.</td></tr>
   <tr><td><a href="../claude-snapshot"><code>claude-snapshot</code></a></td><td>Save active instances (name + dir) for restore after reboot.</td></tr>
   <tr><td><a href="../claude-restore-all"><code>claude-restore-all</code></a></td><td>Reopen the last session's instances (boot hook or manual).</td></tr>
+  <tr><td><a href="../claude-watchdog"><code>claude-watchdog</code></a></td><td>Opt-in: restart a crashed instance in place (pane-died hook).</td></tr>
   <tr><td><a href="../claude-rename"><code>claude-rename</code></a></td><td>Rename an instance (window + registry).</td></tr>
   <tr><td><a href="../claude-shell"><code>claude-shell</code></a></td><td>Open an interactive shell window (for commands Claude can't run), in the current dir.</td></tr>
   <tr><td><a href="../claude-cd"><code>claude-cd</code></a></td><td>Move the current instance to a chosen directory, relaunching it there (resume) + updating the registry.</td></tr>
@@ -298,6 +299,20 @@ unless config has <code>restore_on_boot = true</code> (so boot-restore is
 opt-in). Also bound to the menu's "Restore last session" (key <code>a</code>).</p>
 <p><strong>Note:</strong> the snapshot is taken on graceful service stop; a hard
 power-loss reboot reuses the previous snapshot (or none).</p></div>
+<div class="sym"><h3 id="cmd-watchdog"><code>claude-watchdog WINDOW_ID DEAD_STATUS</code></h3>
+<p><strong>Opt-in</strong> (config <code>watchdog = true</code>). Invoked by the
+tmux <code>pane-died</code> hook. Restarts a <strong>crashed</strong> managed
+instance <strong>in place</strong> (<code>respawn-pane</code>, resuming its
+conversation from the registry — transcript, dir, model, effort). A clean exit
+(status 0) just closes the lingering dead pane; an intentional close (window
+gone / row not <code>active</code>) is ignored. Crash-loop protection:
+<code>watchdog_max_retries</code> within <code>watchdog_window</code> seconds with
+exponential <code>watchdog_backoff</code>; on exhausting the budget it
+<strong>gives up, leaves the dead pane, and notifies once</strong>
+(<code>claude-notify</code>). When <code>watchdog = true</code>, managed windows
+get <code>remain-on-exit on</code> (via <code>cs_apply_window</code>) so crashes
+are detectable; the hook is wired into <code>bindings.conf</code> by
+<code>install.sh</code> only when enabled (re-run it after toggling).</p></div>
 <div class="sym"><h3 id="cmd-popup"><code>claude-popup {ls|help}</code></h3>
 <p>Runs <code>claude-ls</code> or prints the cheat sheet, then waits for Enter —
 so a tmux <code>display-popup</code> binding stays readable. Keeps complex

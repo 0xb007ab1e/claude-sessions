@@ -40,7 +40,7 @@ mkdir -p "$BIN" "$APPS" "$UNITDIR" "$CSCONF" "$STATE"
 # 1. CLI shortcuts on PATH ----------------------------------------------------
 for f in cj claude-session claude-ls claude-new claude-restore claude-popup \
          claude-notify claude-snapshot claude-restore-all claude-rename claude-shell \
-         claude-pick claude-cd claude-hook claude-status claude-cost claude-model; do
+         claude-pick claude-cd claude-hook claude-status claude-cost claude-model claude-watchdog; do
   ln -sf "$REPO/$f" "$BIN/$f"
   echo "linked   $BIN/$f"
 done
@@ -112,6 +112,13 @@ if [ "$(cs_config_get notify desktop)" = ntfy ] && [ -z "$(cs_config_get ntfy_to
 fi
 sed "s#@BIN@#$BIN#g" "$REPO/tmux/bindings.conf.in" > "$CSCONF/bindings.conf"
 echo "wrote    $CSCONF/bindings.conf (tmux menu + keys)"
+# Watchdog (opt-in): only wire the pane-died hook when watchdog=true, so the
+# default UX is untouched. window_id/pane_dead_status have no spaces -> no inner
+# quoting needed. claude-watchdog re-checks the flag at runtime too.
+if [ "$(cs_config_get watchdog false)" = true ]; then
+  printf "\n# watchdog: restart crashed instances (opt-in)\nset-hook -g pane-died 'run-shell -b \"%s/claude-watchdog #{window_id} #{pane_dead_status}\"'\n" "$BIN" >> "$CSCONF/bindings.conf"
+  echo "wrote    watchdog pane-died hook (watchdog=true)"
+fi
 case "$(tmux -V)" in *" 3."[2-9]*|*" "[4-9].*) : ;; *)
   echo "warning: tmux >= 3.2 recommended for popups (you have $(tmux -V))" ;;
 esac

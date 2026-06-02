@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# claude-watchdog WINDOW_ID DEAD_STATUS — invoked by the tmux `pane-died` hook
+# (opt-in: config `watchdog = true`). Restarts a CRASHED managed instance IN
+# PLACE (respawn-pane, resuming its conversation from the registry). Ignores
+# clean exits and intentional closes; after repeated crashes it gives up and
+# notifies (notify-on-give-up only). Run backgrounded (run-shell -b), so the
+# backoff sleep doesn't block the tmux server.
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+
+wid="${1:-}"; status="${2:-0}"
+[ -n "$wid" ] || exit 0
+[ "$(cs_config_get watchdog false)" = true ] || exit 0          # disabled -> no-op
+
+S="$(cs_session)"
+restart_on="$(cs_config_get watchdog_restart_on crash)"         # crash | always | never
+[ "$restart_on" = never ] && exit 0
+
+# Must be a managed (active) instance — intentional stops mark the row closed,
+# so a closed/absent row means "don't touch".
+row="$(cs_rows | awk -F'\t' -v w="$wid" '$4==w && $7=="active"{print; exit}')"
+[ -n "$row" ] || exit 0
+
+# Clean exit (status 0): close the lingering dead pane to match normal UX.
+if [ "$status" = 0 ] && [ "$restart_on" != always ]; then
+  tmux kill-window -t "$S:$wid" 2>/dev/null || true
+  exit 0
+fi
+
+# Restart only if the window still exists as a dead pane. An intentional
+# kill-window removes the window entirely, so this guards against restarting
+# something the user deliberately closed.
+tmux list-panes -t "$S:$wid" >/dev/null 2>&1 || exit 0
+
+name="$(cs_field 1 "$row")"; cwd="$(cs_field 5 "$row")"
+transcript="$(cs_field 9 "$row")"; model="$(cs_field 10 "$row")"; effort="$(cs_field 11 "$row")"
+
+# Crash-loop budget: count restarts within the rolling window.
+maxr="$(cs_config_get watchdog_max_retries 3)"
+win="$(cs_config_get watchdog_window 60)"
+base="$(cs_config_get watchdog_backoff 5)"
+wd="$(cs_watchdog_dir)"; mkdir -p "$wd"
+f="$wd/$(printf '%s' "$wid" | tr -c 'A-Za-z0-9@_-' '_')"
+now="$(date +%s)"
+recent=""; n=0
+if [ -f "$f" ]; then
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    if [ "$(( now - t ))" -lt "$win" ]; then recent="${recent}${t}"$'\n'; n=$((n + 1)); fi
+  done < "$f"
+fi
+
+if [ "$n" -ge "$maxr" ]; then
+  printf '%s' "$recent" > "$f"
+  "$HERE/claude-notify" giveup "$name (crashed ${n}x — gave up)" "$S" >/dev/null 2>&1 || true
+  exit 0                                                        # leave the dead pane; you decide
+fi
+printf '%s%s\n' "$recent" "$now" > "$f"                         # record this attempt
+
+# Rebuild the launch command exactly as claude-new would.
+REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
+REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
+extra=""; [ -n "$model" ] && extra+=" --model $model"; [ -n "$effort" ] && extra+=" --effort $effort"
+if [ -n "$transcript" ]; then cmd="$REAL_CLAUDE --resume $transcript$extra"
+else                          cmd="$REAL_CLAUDE --continue$extra"; fi
+
+# Exponential backoff (base * 2^n), then respawn the dead pane in place.
+case "$base" in ''|*[!0-9]*) base=5 ;; esac
+sleep "$(( base * (1 << n) ))" 2>/dev/null || true
+tmux respawn-pane -t "$S:$wid" -c "$cwd" "exec $cmd" 2>/dev/null || true
