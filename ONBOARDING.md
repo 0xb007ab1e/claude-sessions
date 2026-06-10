@@ -54,7 +54,9 @@ bar) to open the menu, or use `prefix` + the letter. Switch instances with
 CLI equivalents: `claude-ls`, `claude-pick` (selectable list), `claude-new
 [-m resume|continue] [-D]`, `claude-cd` (move the instance to another dir,
 resuming), `claude-restore`, `claude-restore-all`, `claude-rename`,
-`claude-shell`, `claude-session` (multi-window layouts).
+`claude-shell`, `claude-ask` (run an interactive command — `ssh-add`, `sudo`,
+an OTP — in a window so you answer a prompt Claude can't type),
+`claude-session` (multi-window layouts).
 
 ## Screenshots — menu actions & status bar
 

@@ -42,5 +42,19 @@ _claude_session_complete() {
 }
 complete -F _claude_session_complete claude-session
 
+_claude_ask_complete() {
+  local cur prev; cur="${COMP_WORDS[COMP_CWORD]}"; prev="${COMP_WORDS[COMP_CWORD-1]}"
+  # First word after the command = subcommand.
+  if [ "$COMP_CWORD" -eq 1 ]; then
+    COMPREPLY=($(compgen -W "run send wait close help" -- "$cur")); return
+  fi
+  case "${COMP_WORDS[1]}" in
+    run)  COMPREPLY=($(compgen -W "-n -e -m -S -w -c -t -- -h" -- "$cur")) ;;
+    send) COMPREPLY=($(compgen -W "-F" -- "$cur")) ;;
+    wait) COMPREPLY=($(compgen -W "-t -c" -- "$cur")) ;;
+  esac
+}
+complete -F _claude_ask_complete claude-ask
+
 # Simple flag/no-arg completers for the rest.
 complete -W "--if-enabled" claude-restore-all 2>/dev/null || true

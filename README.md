@@ -110,6 +110,16 @@ can't run — `sudo`, logins, etc.). Trim closed history with `claude-ls --prune
 color, indented beneath it in `claude-ls` — for when Claude suggests a `! sudo …`
 command. Shells aren't watched/restarted and just close when you exit them.
 
+**Answering prompts Claude can't type — `claude-ask`.** Claude Code's own shell
+has no controlling TTY, so a command that reads a secret from `/dev/tty`
+(`ssh-add`, GPG, `sudo`, an OTP) just hangs. `claude-ask run -- <cmd>` runs that
+command in a grouped window and **selects it so you type — or paste — the
+answer** (locally or from your phone via `claude-session -g`); the pane is kept
+after the command exits so the launching Claude can read the result and exit
+status with `claude-ask wait`, and auto-close + de-register it on success
+(`run -wc`). Secrets can be pasted off the command line with
+`… | claude-ask send -F 0 <win>`. Subcommands: `run` / `send` / `wait` / `close`.
+
 **Choosing the directory:** a new instance opens in the current window's
 directory by default. To pick one, use **New in dir…** (`prefix + D`) or
 `claude-new -c <dir>` / `claude-new -D` (prompts). **Reopen closed** also prompts
@@ -240,6 +250,7 @@ rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the
 | `cj` | Primary join command (claude-join); `-a` auto-names |
 | `claude-ls` / `claude-pick` / `claude-new` / `claude-restore` | List / pick (switch·reopen) / open / reopen instances |
 | `claude-cd` / `claude-rename` / `claude-shell` | Move dir (resume) / rename / shell |
+| `claude-ask` | Run an interactive cmd (ssh-add/sudo/OTP) in a window so a human answers a prompt Claude can't type; `run`/`send`/`wait`/`close` |
 | `claude-model` | Pick model/effort, then open a new instance |
 | `claude-popup` | Run a view inside a tmux popup |
 | `claude-session` | General launcher — one Claude per window in a named session |
