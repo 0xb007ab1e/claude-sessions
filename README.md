@@ -155,12 +155,14 @@ use **New (model)…** (`prefix + M`) to pick both from a menu. Set
 ### Tab-completion & tests
 
 The installer sources `completions/claude-sessions.bash` from `~/.bashrc`
-(flags + scheme values for `cj`/`claude-new`/`claude-ls`/`claude-session`).
-Unit tests for `lib.sh` are in `tests/lib.bats` — run `bats tests/`. An
-end-to-end test is in `tests/integration.sh` (`bash tests/integration.sh`) — it
-drives the fzf picker via `tmux send-keys` in a pane **and** runs `claude-new`
-through a real `display-popup`, on a private socket; it skips cleanly without
-`tmux`/`fzf`.
+(flags + scheme values for `cj`/`claude-new`/`claude-ls`/`claude-session`, plus
+`claude-ask` subcommands). Unit tests for `lib.sh` are in `tests/lib.bats` — run
+`bats tests/`. An end-to-end test is in `tests/integration.sh`
+(`bash tests/integration.sh`) — it drives the fzf picker via `tmux send-keys` in
+a pane **and** runs `claude-new` through a real `display-popup`, on a private
+socket; it skips cleanly without `tmux`/`fzf`. The watchdog's crash/respawn/
+give-up logic has its own test against a fake `tmux` in `tests/watchdog.sh`
+(`bash tests/watchdog.sh`).
 
 ### Attention notifications
 

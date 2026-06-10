@@ -45,6 +45,7 @@ migrations. Optional: <code>bash-completion</code>, <code>fzf</code>,
   <tr><td><a href="../claude-watchdog"><code>claude-watchdog</code></a></td><td>Opt-in: restart a crashed instance in place (pane-died hook).</td></tr>
   <tr><td><a href="../claude-rename"><code>claude-rename</code></a></td><td>Rename an instance (window + registry).</td></tr>
   <tr><td><a href="../claude-shell"><code>claude-shell</code></a></td><td>Open an interactive shell window (for commands Claude can't run), in the current dir.</td></tr>
+  <tr><td><a href="../claude-ask"><code>claude-ask</code></a></td><td>Run an interactive command (ssh-add/sudo/OTP/login) in a grouped window so a human answers a prompt Claude can't type; <code>run</code>/<code>send</code>/<code>wait</code>/<code>close</code>.</td></tr>
   <tr><td><a href="../claude-cd"><code>claude-cd</code></a></td><td>Move the current instance to a chosen directory, relaunching it there (resume) + updating the registry.</td></tr>
   <tr><td><a href="../claude-hook"><code>claude-hook</code></a></td><td>Claude Code hook dispatcher: records per-instance status + notifies on approval prompts.</td></tr>
   <tr><td><a href="../claude-status"><code>claude-status</code></a></td><td>Summarize instance status (⚠ needs-approval / ⚙ working) for the tmux status bar.</td></tr>
@@ -53,6 +54,7 @@ migrations. Optional: <code>bash-completion</code>, <code>fzf</code>,
   <tr><td><a href="../completions/claude-sessions.bash"><code>completions/claude-sessions.bash</code></a></td><td>Bash completion (sourced from <code>~/.bashrc</code>).</td></tr>
   <tr><td><a href="../tests/lib.bats"><code>tests/lib.bats</code></a></td><td>Unit tests for <code>lib.sh</code> (run with <code>bats tests/</code>).</td></tr>
   <tr><td><a href="../tests/integration.sh"><code>tests/integration.sh</code></a></td><td>End-to-end tests: fzf picker (send-keys in a pane) + popup exec (display-popup); private socket; skips without tmux/fzf.</td></tr>
+  <tr><td><a href="../tests/watchdog.sh"><code>tests/watchdog.sh</code></a></td><td>Watchdog crash/respawn/give-up logic against a fake <code>tmux</code> (run with <code>bash tests/watchdog.sh</code>).</td></tr>
   <tr><td><a href="../claude-session"><code>claude-session</code></a></td><td>General launcher: build a named session, one Claude per window (resume modes, <code>-a</code>).</td></tr>
   <tr><td><a href="../lib.sh"><code>lib.sh</code></a></td><td>Shared helpers: config, naming schemes, color palette, the instance registry.</td></tr>
   <tr><td><a href="../config.example"><code>config.example</code></a></td><td>Default config (<code>name_scheme</code>, <code>auto_name</code>).</td></tr>
@@ -224,6 +226,31 @@ from</strong>: placed in the adjacent window, <strong>inheriting that instance's
 colour</strong>, and shown <strong>indented</strong> beneath it in
 <code>claude-ls</code>. It's <em>not</em> watched/respawned and closes on exit
 (left until then). Menu: Shell ▸ "New shell here" (<code>prefix+B</code>).</p></div>
+<div class="sym"><h3 id="cmd-ask"><code>claude-ask {run|send|wait|close} …</code></h3>
+<p>Run an <strong>interactive command in a window so a human answers a prompt
+Claude Code itself cannot type</strong> — an <code>ssh-add</code>/GPG passphrase,
+<code>sudo</code>, an OTP/2FA code, an interactive login. Claude's own Bash tool
+has no controlling TTY, so such a command (which reads from <code>/dev/tty</code>)
+hangs forever; <code>claude-ask</code> runs it in a real tmux pane and
+<strong>selects it</strong> so the user types — or pastes — the answer (locally or
+from a phone via <code>claude-session -g</code>). Like
+<a href="#cmd-shell"><code>claude-shell</code></a> it groups under the launching
+instance (adjacent window, inherited colour) and is registered
+<code>kind=shell</code> so the <a href="#cmd-watchdog">watchdog</a> never respawns
+it. The pane is kept after the command exits (<code>remain-on-exit</code>, set
+<em>before</em> the command runs via a held window + <code>respawn-pane</code> so a
+fast-exiting command can't self-destroy before its result is readable), letting
+the launching session read the result + exit status, then auto-close on success.
+Subcommands: <code>run [-n NAME] [-e VAR=VAL] [-m MSG] [-S] [-w] [-c] [-t SECS]
+-- CMD …</code> (open the window, prints its <code>@window_id</code>; <code>-w</code>
+waits inline, <code>-c</code> auto-closes + de-registers on exit&nbsp;0,
+<code>-t</code> bounds the wait); <code>send [-F FD] TARGET [TEXT]</code> (paste
+input + Enter — with <code>-F</code> a <strong>secret</strong> is streamed from a
+file descriptor through a tmux buffer, never on <code>argv</code>);
+<code>wait TARGET [-t SECS] [-c]</code> (block until the command exits, print status
++ tail); <code>close TARGET</code> (kill the window and reconcile it out of the
+list). <code>CMD</code>'s argv is exec'd directly (no shell), so pass
+<strong>absolute</strong> paths.</p></div>
 <div class="sym"><h3 id="cmd-status"><code>claude-status [bar]</code></h3>
 <p>Summarize per-instance status (from <a href="#cmd-hook"><code>claude-hook</code></a>)
 for live windows: how many need approval / are working. <code>bar</code> prints a
