@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+# claude-ask — run an interactive COMMAND in a window of the current claude
+# session so a HUMAN can answer a prompt that Claude Code cannot type itself:
+# ssh-add / GPG passphrases, sudo, 2FA / OTP codes, interactive logins, etc.
+#
+# Why it exists: Claude's own Bash tool has no controlling TTY, so a command
+# that reads a secret from /dev/tty (ssh-add) just hangs forever. claude-ask
+# runs that command in a real tmux pane and SELECTS it, so you can type — or
+# PASTE — the answer (locally or from your phone via `claude-session -g`). The
+# pane is kept after the command exits (remain-on-exit) so the launching Claude
+# can read the result + exit status; on success it can auto-close + de-register
+# the window. Registered kind=shell, so the watchdog never respawns it.
+#
+# Subcommands:
+#   run  [opts] -- CMD [ARG...]  open a window running CMD; prints its <window_id>
+#   send  [-F FD] TARGET [TEXT]  paste input + Enter into the pane. With -F, read
+#                                a SECRET from file-descriptor FD via a tmux
+#                                buffer (never on argv); else TEXT (non-secret),
+#                                or stdin if TEXT omitted.
+#   wait  TARGET [-t SECS] [-c]  block until CMD exits; print exit status + tail.
+#                                -c: close + de-register the window if status 0.
+#   close TARGET                 kill the window and drop it from the instance list
+#
+# run options:
+#   -n NAME      window name (default "ask:<cmd-basename>")
+#   -e VAR=VAL   set an env var for CMD (repeatable) — e.g. -e SSH_AUTH_SOCK=...
+#   -m MSG       banner line shown above CMD (tell the human what to do)
+#   -S           no-select: don't switch the attached client to the new window
+#   -w           wait inline for CMD to exit, then print status + tail
+#   -c           with -w: on exit status 0, auto-close + de-register the window
+#   -t SECS      with -w: give up waiting after SECS (default 0 = forever)
+#   -h           help
+#
+# TARGET is the @NN window id printed by `run` (or any tmux target).
+# NOTE: CMD's argv is exec'd directly (no shell) — pass ABSOLUTE paths; a
+# leading ~ is expanded for convenience but globs/${vars} are not.
+#
+# Examples:
+#   wid=$(claude-ask run -wc -t 120 -m 'Enter SSH signing-key passphrase' \
+#           -e SSH_AUTH_SOCK=$SSH_AUTH_SOCK -- ssh-add ~/.ssh/id_ed25519_signing)
+#   claude-ask send "$wid" 123456                 # paste a (non-secret) OTP
+#   printf '%s' "$TOKEN" | claude-ask send -F 0 "$wid"   # paste a secret off-argv
+set -eo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+
+usage() { sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+
+# Expand a single leading ~ to $HOME (argv is exec'd, so the shell won't).
+_expand_tilde() { case "$1" in "~") echo "$HOME" ;; "~/"*) echo "$HOME/${1#\~/}" ;; *) echo "$1" ;; esac; }
+
+# Block until TARGET's pane is dead; print "exit_status=N" + a short tail.
+# Returns the command's exit status (so callers can branch). $2=timeout (0=∞).
+_ask_poll() {
+  local target="$1" timeout="${2:-0}" waited=0 dead status
+  while :; do
+    dead="$(tmux display-message -p -t "$target" '#{pane_dead}' 2>/dev/null || echo missing)"
+    [ "$dead" = missing ] && { echo "claude-ask: no such window: $target" >&2; return 3; }
+    [ "$dead" = 1 ] && break
+    if [ "$timeout" -gt 0 ] && [ "$waited" -ge "$timeout" ]; then
+      echo "claude-ask: timeout after ${timeout}s (still running)" >&2; return 124
+    fi
+    sleep 1; waited=$((waited + 1))
+  done
+  status="$(tmux display-message -p -t "$target" '#{pane_dead_status}' 2>/dev/null || echo '?')"
+  echo "exit_status=$status"
+  tmux capture-pane -p -t "$target" 2>/dev/null | sed '/^$/d' | tail -8
+  [ "$status" = 0 ]
+}
+
+# Kill TARGET and reconcile the registry so it leaves the active instance list.
+_ask_drop() { tmux kill-window -t "$1" 2>/dev/null || true; cs_reconcile 2>/dev/null || true; }
+
+# Shared by `wait` and `run -w`: poll, then optionally close on success.
+_ask_wait_close() {
+  local target="$1" timeout="$2" close="$3" rc=0
+  _ask_poll "$target" "$timeout" || rc=$?
+  if [ "$close" = 1 ] && [ "$rc" = 0 ]; then _ask_drop "$target"; fi
+  return "$rc"
+}
+
+cmd_run() {
+  local NAME="" MSG="" SELECT=1 WAIT=0 CLOSE=0 TIMEOUT=0; local -a ENVS=()
+  while getopts ":n:e:m:Swct:h" o; do
+    case "$o" in
+      n) NAME="$OPTARG" ;;
+      e) ENVS+=("$OPTARG") ;;
+      m) MSG="$OPTARG" ;;
+      S) SELECT=0 ;;
+      w) WAIT=1 ;;
+      c) CLOSE=1 ;;
+      t) TIMEOUT="$OPTARG" ;;
+      h) usage 0 ;;
+      *) echo "claude-ask run: bad option -$OPTARG" >&2; exit 2 ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  [ "${1:-}" = "--" ] && shift
+  [ "$#" -ge 1 ] || { echo "claude-ask run: no command (use: run [opts] -- CMD ...)" >&2; exit 2; }
+
+  # Build a safely-quoted "env VAR=VAL ... cmd args" string for tmux.
+  local cmd_base; cmd_base="$(basename "$(_expand_tilde "$1")")"
+  local -a parts=(env); local e a
+  for e in "${ENVS[@]}"; do parts+=("$e"); done
+  for a in "$@"; do parts+=("$(_expand_tilde "$a")"); done
+  local q=""; for a in "${parts[@]}"; do q+="$(printf '%q ' "$a")"; done
+
+  # A banner the human sees above the command's own prompt, then exec the cmd so
+  # its exit becomes the pane's exit (kept visible by remain-on-exit).
+  local banner=""
+  [ -n "$MSG" ] && banner="printf '\033[1;36m== claude-ask ==\033[0m %s\n' $(printf '%q' "$MSG"); "
+  local full="${banner}printf '\033[2m(answer below; the launching session reads the result when you are done)\033[0m\n'; exec ${q}"
+
+  local S parent pcolor wid name
+  S="$(cs_session)"
+  tmux -f "$HERE/tmux.conf" has-session -t "$S" 2>/dev/null || tmux new-session -d -s "$S"
+
+  # Group under the launching instance (inherit colour, place adjacent), exactly
+  # like claude-shell; fall back to a standalone grey window.
+  parent="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
+  pcolor="$(cs_rows | awk -F'\t' -v p="$parent" '$4==p && $7=="active"{print $2; exit}')"
+  [ -n "$pcolor" ] || { pcolor=244; parent=""; }
+
+  # Create the window HELD (default shell, detached), set remain-on-exit FIRST,
+  # then run the command via respawn-pane — so a fast-exiting command can't
+  # destroy the window before the pane is told to persist its result. kind=shell
+  # means the watchdog leaves the dead pane alone (it isn't respawned).
+  if [ -n "$parent" ]; then
+    wid="$(tmux new-window -d -a -t "$S:$parent" -P -F '#{window_id}')"
+  else
+    wid="$(tmux new-window -d -t "$S:" -P -F '#{window_id}')"
+  fi
+  name="${NAME:-ask:$cmd_base}"
+  cs_apply_window "$S:$wid" "$name" "$pcolor"
+  tmux set-window-option -t "$S:$wid" remain-on-exit on 2>/dev/null || true
+  cs_record_active "$name" "$pcolor" "$wid" "$PWD" "" "" "" shell "$parent"
+  tmux respawn-pane -k -t "$S:$wid" "$full"
+  [ "$SELECT" = 1 ] && tmux select-window -t "$S:$wid"
+
+  if [ "$WAIT" = 1 ]; then
+    # Inline-wait mode: the id is incidental (we block here), so keep stdout
+    # clean for the poll result (exit_status + tail) and exit with CMD's status.
+    echo "window $wid" >&2
+    _ask_wait_close "$wid" "$TIMEOUT" "$CLOSE"
+  else
+    echo "$wid"
+  fi
+}
+
+cmd_send() {
+  local fd=""
+  while getopts ":F:" o; do case "$o" in F) fd="$OPTARG" ;; esac; done
+  shift $((OPTIND - 1))
+  local target="${1:-}"; shift || true
+  [ -n "$target" ] || { echo "claude-ask send: need TARGET" >&2; exit 2; }
+  if [ -n "$fd" ]; then
+    # SECRET path: stream the value through a tmux paste-buffer so it never
+    # appears on a command line / in ps. -d deletes the buffer after pasting.
+    local buf="_ask_secret_$$"
+    eval "tmux load-buffer -b '$buf' - <&$fd"
+    tmux paste-buffer -t "$target" -b "$buf" -d -p
+    tmux send-keys -t "$target" Enter
+  else
+    local text; if [ "$#" -ge 1 ]; then text="$*"; else text="$(cat)"; fi
+    tmux send-keys -t "$target" -l -- "$text"
+    tmux send-keys -t "$target" Enter
+  fi
+}
+
+cmd_wait() {
+  local target="${1:-}"; shift || true
+  [ -n "$target" ] || { echo "claude-ask wait: need TARGET" >&2; exit 2; }
+  local timeout=0 close=0
+  while getopts ":t:c" o; do case "$o" in t) timeout="$OPTARG" ;; c) close=1 ;; esac; done
+  _ask_wait_close "$target" "$timeout" "$close"
+}
+
+cmd_close() {
+  local target="${1:-}"
+  [ -n "$target" ] || { echo "claude-ask close: need TARGET" >&2; exit 2; }
+  _ask_drop "$target"
+}
+
+case "${1:-help}" in
+  run)   shift; cmd_run "$@" ;;
+  send)  shift; cmd_send "$@" ;;
+  wait)  shift; cmd_wait "$@" ;;
+  close) shift; cmd_close "$@" ;;
+  -h|help|"") usage 0 ;;
+  *) echo "claude-ask: unknown subcommand '$1' (run|send|wait|close)" >&2; usage 2 ;;
+esac

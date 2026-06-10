@@ -1,0 +1,43 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# claude-join — one-tap attach to the persistent `claude` tmux fleet from a phone.
+#
+# A Termux:Widget shortcut: tap a home-screen icon and land straight in your
+# in-progress instances. It attaches GROUPED (`claude-session -g`), so this
+# client sizes independently and won't squeeze a desktop that's also attached;
+# it falls back to `cj` if the fleet isn't running yet. Because the fleet is
+# persistent (systemd + tmux), a dropped connection just means re-tap to rejoin.
+#
+# This is a TEMPLATE you copy to the phone and edit — it is NOT run on the
+# server. The shebang above is Termux's bash; on a non-Termux client replace it
+# with `#!/usr/bin/env bash`.
+#
+# Setup (one time, in Termux on the phone):
+#   1. Install the Termux:Widget add-on — from the SAME source as Termux
+#      (F-Droid or GitHub; not Play Store, which is deprecated and incompatible).
+#   2. mkdir -p ~/.shortcuts
+#      # copy this file over, e.g.:  scp <host>:_src/_dev/tmux-session/mobile/claude-join.example ~/.shortcuts/claude-join
+#   3. Edit HOST below to your machine's Tailscale MagicDNS name or IP.
+#   4. chmod 700 ~/.shortcuts ~/.shortcuts/claude-join
+#   5. Home screen -> long-press -> Widgets -> Termux:Widget -> drop the 1x1
+#      "Termux shortcut" and pick "claude-join".
+#
+# Passwordless login, mosh (roaming), and Tailscale-SSH notes: see ./README.md.
+
+set -eu
+
+# Your machine's Tailscale MagicDNS name or IP. Override at runtime with $CLAUDE_HOST.
+HOST="${CLAUDE_HOST:-CHANGE-ME}"
+
+# Session name; defaults to the project default "claude".
+SESSION="${CLAUDE_TMUX_SESSION:-claude}"
+
+if [ "$HOST" = "CHANGE-ME" ]; then
+  echo "claude-join: set HOST in this script (or export CLAUDE_HOST) to your" >&2
+  echo "             machine's Tailscale name or IP, e.g. HOST=my-box" >&2
+  exit 2
+fi
+
+# -t forces a TTY (tmux needs one); a login shell puts ~/.local/bin on PATH so
+# `claude-session`/`cj` resolve. The session name is passed via env, which every
+# tool in this project honors.
+exec ssh -t "$HOST" "bash -lc 'CLAUDE_TMUX_SESSION=$SESSION claude-session -g'"
