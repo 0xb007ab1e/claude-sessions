@@ -250,6 +250,7 @@ rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the
 | `install.sh` | Portable, idempotent installer |
 | `systemd/claude-tmux.service.in` | Template for the boot-autostart user service |
 | `applications/claude-join.desktop.in` | Template for the desktop shortcut |
+| `mobile/claude-join.example` / `mobile/README.md` | One-tap phone shortcut (Termux:Widget) + setup notes |
 | `docs/index.html` | Full documentation (every script/function) |
 
 ## `claude-session` — build a custom layout
@@ -276,6 +277,11 @@ ssh <host> -t 'bash -lc cj'             # login shell so ~/.local/bin is on PATH
 ssh <host> -t 'tmux attach -t claude'   # plain attach (tmux is on the default PATH)
 ssh <host> -t 'claude-session -g'       # grouped view: own size, won't resize the other client
 ```
+
+**One-tap shortcut:** to launch that grouped attach from a home-screen icon
+(Termux:Widget on Android, or JuiceSSH), copy `mobile/claude-join.example` to the
+phone and follow [`mobile/README.md`](mobile/README.md) — covers passwordless
+login, mosh for roaming, and Tailscale SSH.
 
 ### Why `-g` from a second client
 

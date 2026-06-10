@@ -2,3 +2,7 @@
 *~
 *.swp
 .DS_Store
+
+# Local, host-specific copy of the phone shortcut (baked with your HOST).
+# The tracked, portable template is mobile/claude-join.example.
+mobile/claude-join
