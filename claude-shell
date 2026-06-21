@@ -42,7 +42,9 @@ tmux -f "$HERE/tmux.conf" has-session -t "$S" 2>/dev/null || tmux new-session -d
 # under that instance and inherits its colour. If there's no managed parent
 # (e.g. launched from the boot shell), fall back to a standalone grey shell.
 parent="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
-pcolor="$(cs_rows | awk -F'\t' -v p="$parent" '$4==p && $7=="active"{print $2; exit}')"
+# No early `exit` in awk: it would close the pipe and SIGPIPE jq (cs_rows), which
+# pipefail+set -e turn into a 141. `!f` keeps the first match but drains all input.
+pcolor="$(cs_rows | awk -F'\t' -v p="$parent" '$4==p && $7=="active" && !f{print $2; f=1}')"
 [ -n "$pcolor" ] || { pcolor=244; parent=""; }
 
 # A window with no command runs the user's interactive login shell. Place it

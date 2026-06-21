@@ -19,7 +19,8 @@ restart_on="$(cs_config_get watchdog_restart_on crash)"         # crash | always
 
 # Must be a managed (active) instance — intentional stops mark the row closed,
 # so a closed/absent row means "don't touch".
-row="$(cs_rows | awk -F'\t' -v w="$wid" '$4==w && $7=="active"{print; exit}')"
+# `!f` (not `exit`) so awk drains cs_rows; an early exit SIGPIPEs jq → 141 under pipefail.
+row="$(cs_rows | awk -F'\t' -v w="$wid" '$4==w && $7=="active" && !f{print; f=1}')"
 [ -n "$row" ] || exit 0
 [ "$(cs_field 12 "$row")" = shell ] && exit 0   # ephemeral shells aren't watched/respawned
 

@@ -12,7 +12,8 @@ wid="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
 [ -n "$wid" ] || { echo "claude-cd: run from inside the session (the instance to move)"; exit 1; }
 
 cs_reconcile                                   # ensure the active row's transcript is linked
-row="$(cs_rows | awk -F'\t' -v w="$wid" '$4==w && $7=="active"{print; exit}')"
+# `!f` (not `exit`) so awk drains cs_rows; an early exit SIGPIPEs jq → 141 under pipefail.
+row="$(cs_rows | awk -F'\t' -v w="$wid" '$4==w && $7=="active" && !f{print; f=1}')"
 name="$(cs_field 1 "$row")"; olddir="$(cs_field 5 "$row")"; transcript="$(cs_field 9 "$row")"
 model="$(cs_field 10 "$row")"; effort="$(cs_field 11 "$row")"
 name="${name:-claude}"; olddir="${olddir:-$PWD}"
