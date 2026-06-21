@@ -19,7 +19,8 @@ while IFS= read -r row; do
   pdir="$(cs_project_dir "$cwd")"
   if [ -n "$tid" ] && [ -f "$pdir/$tid.jsonl" ]; then file="$pdir/$tid.jsonl"
   elif [ -d "$pdir" ]; then   # guard: find on a missing dir fails under pipefail
-    file="$(find "$pdir" -maxdepth 1 -name '*.jsonl' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)"
+    # awk drains sort (head -1 would SIGPIPE it); `|| true` kept as belt-and-suspenders.
+    file="$(find "$pdir" -maxdepth 1 -name '*.jsonl' -printf '%T@ %p\n' 2>/dev/null | sort -rn | awk 'NR==1{sub(/^[^ ]* /,""); print}' || true)"
   else file=""; fi
   [ -n "$file" ] && [ -f "$file" ] && printf '%s\t%s\n' "$name" "$file" >> "$pairs"
 done <<<"$rows"

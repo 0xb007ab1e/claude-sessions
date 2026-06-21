@@ -370,8 +370,11 @@ cs_project_dir() {
 cs_find_transcript() {
   local d f; d="$(cs_project_dir "$1")"
   [ -d "$d" ] || return 0
+  # `awk 'NR==1'` (not `head -1`) so the consumer DRAINS sort's output: head closes
+  # the pipe after one line, SIGPIPE-ing sort → 141 under `set -o pipefail`. awk reads
+  # every line, prints only the first, and strips the leading `%T@ ` (like cut -f2-).
   f="$(find "$d" -maxdepth 1 -name '*.jsonl' -newermt "@$(( ${2:-0} - 2 ))" \
-         -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)"
+         -printf '%T@ %p\n' 2>/dev/null | sort -rn | awk 'NR==1{sub(/^[^ ]* /,""); print}')"
   [ -n "$f" ] && basename "$f" .jsonl || true
 }
 
