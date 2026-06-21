@@ -34,7 +34,8 @@ fi
 
 # Pull dir + transcript + model/effort for the chosen name. Use cut (cs_field),
 # not `IFS=$'\t' read`, which collapses consecutive tabs and mis-parses empties.
-sel_row="$(printf '%s\n' "${rows[@]}" | awk -F'\t' -v n="$choice" '$1==n{print; exit}')"
+# `!f` (not `exit`) so awk drains the input; an early exit can SIGPIPE the writer → 141.
+sel_row="$(printf '%s\n' "${rows[@]}" | awk -F'\t' -v n="$choice" '$1==n && !f{print; f=1}')"
 dir="$(cs_field 2 "$sel_row")"; transcript="$(cs_field 3 "$sel_row")"
 model="$(cs_field 4 "$sel_row")"; effort="$(cs_field 5 "$sel_row")"
 dir="${dir:-$HOME}"

@@ -118,7 +118,11 @@ cmd_run() {
   # Group under the launching instance (inherit colour, place adjacent), exactly
   # like claude-shell; fall back to a standalone grey window.
   parent="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
-  pcolor="$(cs_rows | awk -F'\t' -v p="$parent" '$4==p && $7=="active"{print $2; exit}')"
+  # NOTE: no early `exit` in awk — `cs_rows` (jq) keeps writing, so exiting on the
+  # first match closes the pipe and SIGPIPEs jq, which `set -o pipefail` turns into a
+  # 141 that `set -e` would propagate. `!f` prints only the first match but still
+  # drains all input.
+  pcolor="$(cs_rows | awk -F'\t' -v p="$parent" '$4==p && $7=="active" && !f{print $2; f=1}')"
   [ -n "$pcolor" ] || { pcolor=244; parent=""; }
 
   # Create the window HELD (default shell, detached), set remain-on-exit FIRST,
