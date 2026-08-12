@@ -9,6 +9,11 @@
 #   -n name      give the instance an explicit name (implies naming)
 #   -M model     model for this instance: alias (sonnet|opus|haiku) or full id
 #   -E effort    effort for this instance: low | medium | high | xhigh | max
+#   -p [name]    PIN: reattach to the chosen running instance instead of
+#                spawning. `-p name` sets+joins that instance and persists it as
+#                the default pin; bare `cj` (no other flags/args) then always
+#                rejoins the configured pin. `-p` alone rejoins the saved pin.
+#   --unpin      clear the saved pin (bare `cj` returns to spawn-a-fresh-one).
 #
 # Behaviour (from a normal shell):
 #   * ensure the session exists (the systemd user service normally starts it at
@@ -25,6 +30,15 @@ set -eo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 source "$HERE/lib.sh"
 
+# Resolve a pinned instance NAME to its newest active window id (empty if none).
+cs_pin_wid() {
+  cs_open
+  local reg; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
+  jq -r --arg n "$1" \
+     'select(.status=="active" and .name==$n) | .window_id' "$reg" 2>/dev/null \
+     | tail -n1
+}
+
 S="$(cs_session)"
 CONF="$HERE/tmux.conf"
 REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
@@ -32,20 +46,43 @@ REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
 T=(tmux -f "$CONF")
 
 AUTONAME=0 SCHEME="" NAME="" MODEL="" EFFORT=""
+EXPLICIT=0 PINSET="" PINSAVE=0 PINREQ=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    -a|--auto) AUTONAME=1; shift
+    -a|--auto) AUTONAME=1; EXPLICIT=1; shift
                case "${1:-}" in nato|project|random) SCHEME="$1"; shift ;; esac ;;
-    -n|--name)   NAME="${2:-}"; AUTONAME=1; shift 2 ;;
-    -M|--model)  MODEL="${2:-}"; shift 2 ;;
-    -E|--effort) EFFORT="${2:-}"; shift 2 ;;
-    --)        shift; break ;;
+    -n|--name)   NAME="${2:-}"; AUTONAME=1; EXPLICIT=1; shift 2 ;;
+    -M|--model)  MODEL="${2:-}"; EXPLICIT=1; shift 2 ;;
+    -E|--effort) EFFORT="${2:-}"; EXPLICIT=1; shift 2 ;;
+    -p|--pin)  PINREQ=1; shift
+               case "${1:-}" in ""|-*) : ;; *) PINSET="$1"; PINSAVE=1; shift ;; esac ;;
+    --unpin)   cs_config_set pin_instance ""; echo "cj: pin cleared" >&2; exit 0 ;;
+    --)        EXPLICIT=1; shift; break ;;
     -*)        echo "cj: unknown option $1" >&2; exit 1 ;;
-    *)         break ;;
+    *)         EXPLICIT=1; break ;;
   esac
 done
 # Config can make auto-naming the default.
 [ "$AUTONAME" -eq 0 ] && [ "$(cs_config_get auto_name false)" = "true" ] && AUTONAME=1
+
+# --- Pinned reattach ---------------------------------------------------------
+# Join a chosen running instance instead of spawning a fresh one. `-p name`
+# persists the pin; bare `cj` (no launch flags/args) rejoins the configured pin.
+[ "$PINSAVE" -eq 1 ] && [ -n "$PINSET" ] && cs_config_set pin_instance "$PINSET"
+PIN_TARGET=""
+if [ "$PINREQ" -eq 1 ] || [ "$EXPLICIT" -eq 0 ]; then
+  PIN_TARGET="${PINSET:-$(cs_config_get pin_instance "")}"
+fi
+if [ -n "$PIN_TARGET" ]; then
+  "${T[@]}" has-session -t "$S" 2>/dev/null || "${T[@]}" new-session -d -s "$S"
+  pin_wid="$(cs_pin_wid "$PIN_TARGET")"
+  if [ -n "$pin_wid" ] && "${T[@]}" display-message -t "$S:$pin_wid" -p '' >/dev/null 2>&1; then
+    "${T[@]}" select-window -t "$S:$pin_wid"
+    [ -n "${TMUX:-}" ] && exec "${T[@]}" switch-client -t "$S"
+    exec "${T[@]}" attach -t "$S"
+  fi
+  echo "cj: pinned instance '$PIN_TARGET' not live — falling back to normal join" >&2
+fi
 
 # Per-instance model/effort: flag, else configured default. Prepend to the args
 # passed through to the real Claude CLI (so they apply on every launch path).
