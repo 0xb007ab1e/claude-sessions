@@ -6,7 +6,7 @@ set -eo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 target=""
-while getopts ":t:" o; do case "$o" in t) target="$OPTARG" ;; esac; done
+while getopts ":t:" o; do case "$o" in t) target="$OPTARG" ;; *) echo "claude-rename: bad option" >&2; exit 2 ;; esac; done
 shift $((OPTIND - 1))
 new="${1:-}"
 
