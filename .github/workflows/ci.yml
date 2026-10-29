@@ -1,0 +1,74 @@
+name: CI
+
+# Merge gate for the shell tools: shellcheck (zero warnings), the bats + shell
+# test suites, and a gitleaks secret scan. Mirrors the SSDLC lang-shell + testing
+# mandate (there was no CI before this). shfmt is advisory (repo uses 2-space
+# indent; shfmt defaults to tabs — format drift is reported, not enforced).
+#
+# Supply chain: the one external action is pinned by commit SHA; gitleaks is a
+# version-pinned release verified against its published SHA-256 before use.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test:
+    name: shellcheck + bats + suites
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck bats tmux fzf jq
+
+      - name: shellcheck (zero warnings)
+        run: shellcheck -S warning cj claude-* install.sh lib.sh
+
+      - name: bats unit tests
+        run: bats tests/lib.bats
+
+      - name: integration suite
+        run: bash tests/integration.sh
+
+      - name: watchdog suite
+        run: bash tests/watchdog.sh
+
+      - name: shfmt format drift (advisory)
+        continue-on-error: true
+        run: |
+          curl -fsSL https://github.com/mvdan/sh/releases/download/v3.10.0/shfmt_v3.10.0_linux_amd64 -o /tmp/shfmt
+          chmod +x /tmp/shfmt
+          /tmp/shfmt -i 2 -d cj claude-* install.sh lib.sh || true
+
+  secret-scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # full history so gitleaks scans every commit
+
+      - name: Install gitleaks (pinned + checksum-verified)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m0755 /tmp/gitleaks /usr/local/bin/gitleaks
+
+      - name: gitleaks detect
+        run: gitleaks detect --no-banner --redact
