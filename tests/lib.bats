@@ -210,3 +210,13 @@ setup() {
   run cs_notify_muted /home/x/proj
   [ "$status" -eq 1 ]
 }
+
+@test "cs_config_set/get round-trip (braced key expansion, SC1087 regression)" {
+  cs_config_set notify_on_finish true
+  run cs_config_get notify_on_finish false
+  [ "$output" = true ]
+  # a second key does not clobber the first, and reads back exactly
+  cs_config_set name_scheme project
+  [ "$(cs_config_get notify_on_finish false)" = true ]
+  [ "$(cs_config_get name_scheme nato)" = project ]
+}
