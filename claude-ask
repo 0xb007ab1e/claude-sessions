@@ -156,7 +156,7 @@ cmd_run() {
 
 cmd_send() {
   local fd=""
-  while getopts ":F:" o; do case "$o" in F) fd="$OPTARG" ;; esac; done
+  while getopts ":F:" o; do case "$o" in F) fd="$OPTARG" ;; *) echo "claude-ask send: bad option" >&2; exit 2 ;; esac; done
   shift $((OPTIND - 1))
   local target="${1:-}"; shift || true
   [ -n "$target" ] || { echo "claude-ask send: need TARGET" >&2; exit 2; }
@@ -178,7 +178,7 @@ cmd_wait() {
   local target="${1:-}"; shift || true
   [ -n "$target" ] || { echo "claude-ask wait: need TARGET" >&2; exit 2; }
   local timeout=0 close=0
-  while getopts ":t:c" o; do case "$o" in t) timeout="$OPTARG" ;; c) close=1 ;; esac; done
+  while getopts ":t:c" o; do case "$o" in t) timeout="$OPTARG" ;; c) close=1 ;; *) echo "claude-ask wait: bad option" >&2; exit 2 ;; esac; done
   _ask_wait_close "$target" "$timeout" "$close"
 }
 

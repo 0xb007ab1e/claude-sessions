@@ -416,7 +416,6 @@ cs_link_transcripts() {
 cs_status_dir()   { echo "$(cs_state_dir)/status"; }
 _cs_status_file() { echo "$(cs_status_dir)/$(printf '%s' "$1" | tr -c 'A-Za-z0-9@_-' '_')"; }
 cs_set_status()   { mkdir -p "$(cs_status_dir)"; printf '%s\t%s\n' "$2" "$(date +%s)" > "$(_cs_status_file "$1")"; }
-cs_get_status()   { local f; f="$(_cs_status_file "$1")"; [ -f "$f" ] && cut -f1 "$f" || true; }
 cs_clear_status() { rm -f "$(_cs_status_file "$1")" 2>/dev/null || true; }
 
 # Mark active records closed when their window no longer exists, then link ids.
@@ -427,7 +426,7 @@ cs_reconcile() {
   # Sweep stale per-window status files (windows that no longer exist).
   sd="$(cs_status_dir)"
   if [ -d "$sd" ]; then
-    local livesp=" $(echo $livew) "          # space-delimited, padded (word-safe)
+    local livesp; livesp=" $(echo "$livew" | tr '\n' ' ') "   # space-delimited, padded (word-safe)
     for f in "$sd"/*; do
       [ -e "$f" ] || continue
       wid="$(basename "$f")"
