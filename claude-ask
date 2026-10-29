@@ -47,6 +47,9 @@ source "$HERE/lib.sh"
 usage() { sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 # Expand a single leading ~ to $HOME (argv is exec'd, so the shell won't).
+# The "~" / "~/"* are case PATTERNS matching a literal tilde in the input, not
+# expansions — SC2088 is a false positive here (this function IS the expander).
+# shellcheck disable=SC2088
 _expand_tilde() { case "$1" in "~") echo "$HOME" ;; "~/"*) echo "$HOME/${1#\~/}" ;; *) echo "$1" ;; esac; }
 
 # Block until TARGET's pane is dead; print "exit_status=N" + a short tail.
