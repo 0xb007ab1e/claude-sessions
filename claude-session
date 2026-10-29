@@ -31,7 +31,7 @@
 #   claude-session -s review pr1 pr2
 #   ssh <host> -t 'claude-session -g'        # grouped attach from another machine
 
-set -eo pipefail
+set -euo pipefail
 
 # Resolve the bundled config even when invoked via a symlink on PATH.
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"

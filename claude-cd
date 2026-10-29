@@ -3,7 +3,7 @@
 # directory, relaunch Claude there resuming the same conversation, and update the
 # registry. (Claude can't change its cwd while running, so this restarts it on
 # the same transcript.) Backs the menu's "Change dir" / prefix+G.
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 

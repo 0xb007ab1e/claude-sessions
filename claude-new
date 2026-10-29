@@ -12,7 +12,7 @@
 #     -M MODEL   model for this instance: alias (sonnet|opus|haiku) or full id
 #     -E EFFORT  effort for this instance: low | medium | high | xhigh | max
 #     -D         prompt for the directory (editable, prefilled) before launching
-set -eo pipefail
+set -euo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 MODE=new DIR="" NAME="" SCHEME="" SID="" MODEL="" EFFORT="" ASKDIR=0

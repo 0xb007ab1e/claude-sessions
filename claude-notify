@@ -14,7 +14,7 @@
 #   ntfy_topic      = <topic>                            (required for ntfy)
 #   pushover_token  = <app token>                        (required for pushover)
 #   pushover_user   = <user key>                         (required for pushover)
-set -eo pipefail
+set -euo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 # Let the end user supply (or auto-generate) their ntfy topic slug.

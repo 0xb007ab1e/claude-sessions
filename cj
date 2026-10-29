@@ -25,7 +25,7 @@
 # It deliberately does NOT shadow `claude` — run `cj` to join; run `claude` for
 # a plain, non-tmux instance.
 
-set -eo pipefail
+set -euo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 source "$HERE/lib.sh"

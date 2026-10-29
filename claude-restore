@@ -3,7 +3,7 @@
 # original directory (resumes that directory's most recent conversation).
 # Picks with fzf if available, otherwise a numbered prompt. Meant to run inside
 # a tmux popup (prefix+O / menu), but works standalone too.
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 

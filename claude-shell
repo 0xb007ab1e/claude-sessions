@@ -10,7 +10,7 @@
 #     -c DIR   working directory (default: current window's dir, else $PWD)
 #     -D       prompt for the directory (completion / fzf typeahead)
 #     -n NAME  window name (default: "sh:<dir-basename>")
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 

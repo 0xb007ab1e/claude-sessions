@@ -2,7 +2,7 @@
 # claude-popup — run a claude-sessions view inside a tmux popup and pause for a
 # keypress so the output stays visible. Keeps complex quoting out of the tmux
 # key bindings. Usage: claude-popup {ls|help}
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 case "${1:-ls}" in
   ls)   "$HERE/claude-ls" ;;
