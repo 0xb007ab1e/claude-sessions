@@ -4,7 +4,7 @@
 # model/effort feature (the CLI equivalent is `cj -M MODEL -E EFFORT` or
 # `claude-new -M MODEL -E EFFORT`). Backs the menu's "New (model)…" / prefix+M.
 # Meant to run inside a tmux popup; uses fzf when available, else a prompt.
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 

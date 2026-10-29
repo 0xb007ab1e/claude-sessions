@@ -6,7 +6,7 @@
 #   claude-ls --reconcile-only   update the registry only (used by a tmux hook)
 #   claude-ls --prune [N]        trim closed history to the newest N (default 50)
 #   claude-ls --clean-backups    remove registry migration backups
-set -eo pipefail
+set -euo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 [ "${1:-}" = "--clean-backups" ] && { cs_clean_backups; echo "removed registry migration backups."; exit 0; }

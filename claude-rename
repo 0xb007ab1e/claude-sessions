@@ -2,7 +2,7 @@
 # claude-rename [-t WINDOW_ID] [NEWNAME] — rename the current (or targeted)
 # instance and update its registry row. With no NEWNAME, prompts for one.
 # Bound to the menu/key, which passes the active window id.
-set -eo pipefail
+set -euo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 target=""

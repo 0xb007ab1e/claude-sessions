@@ -6,7 +6,7 @@
 #
 #   --if-enabled   only act when config has `restore_on_boot = true`
 #                  (used by the boot hook so restore is opt-in)
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 

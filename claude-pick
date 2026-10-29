@@ -5,7 +5,7 @@
 #       directory (so that project's CLAUDE.md + memory load too)
 # Backs the menu's "List instances" / prefix+L. Without fzf, falls back to the
 # read-only list.
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 

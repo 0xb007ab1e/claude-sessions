@@ -4,7 +4,7 @@
 # Stop / Notification / SessionEnd). Maps the firing Claude instance to its tmux
 # window via $TMUX_PANE, records a per-instance status, and notifies when it
 # needs you. No-ops for Claude instances not running inside the session.
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 
