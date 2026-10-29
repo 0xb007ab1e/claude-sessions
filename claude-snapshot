@@ -3,7 +3,7 @@
 # (name, directory, kind, parent) to a snapshot file, so they can be reopened
 # after a reboot. Run automatically by the systemd service's ExecStop (before
 # the session is killed), and usable manually at any time.
-set -eo pipefail
+set -euo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 snap="$(cs_state_dir)/last-session.tsv"

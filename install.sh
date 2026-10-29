@@ -14,7 +14,7 @@
 #
 # Uninstall: see README.md.
 
-set -eo pipefail
+set -euo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 BIN="${XDG_BIN_HOME:-$HOME/.local/bin}"

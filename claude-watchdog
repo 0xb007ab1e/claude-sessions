@@ -5,7 +5,7 @@
 # clean exits and intentional closes; after repeated crashes it gives up and
 # notifies (notify-on-give-up only). Run backgrounded (run-shell -b), so the
 # backoff sleep doesn't block the tmux server.
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 

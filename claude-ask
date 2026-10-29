@@ -40,7 +40,7 @@
 #           -e SSH_AUTH_SOCK=$SSH_AUTH_SOCK -- ssh-add ~/.ssh/id_ed25519_signing)
 #   claude-ask send "$wid" 123456                 # paste a (non-secret) OTP
 #   printf '%s' "$TOKEN" | claude-ask send -F 0 "$wid"   # paste a secret off-argv
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 

@@ -2,7 +2,7 @@
 # claude-status [bar] — summarize per-instance status (from the files claude-hook
 # writes) for the tmux status bar: how many instances need approval / are working.
 # Counts only LIVE windows. Prints a tmux-styled string (empty when nothing).
-set -eo pipefail
+set -euo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 dir="$(cs_status_dir)"; [ -d "$dir" ] || exit 0

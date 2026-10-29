@@ -3,7 +3,7 @@
 # total), parsed from each instance's Claude transcript (*.jsonl). Cost is a
 # LIST-PRICE ESTIMATE (per-model rates in the script); on a subscription your
 # actual billing differs — the token counts are the ground truth.
-set -eo pipefail
+set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$HERE/lib.sh"
 command -v python3 >/dev/null 2>&1 || { echo "claude-cost: needs python3" >&2; exit 1; }
