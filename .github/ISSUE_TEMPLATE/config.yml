@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Filing policy (agents + humans)
+    url: https://github.com/0xb007ab1e/claude-sessions/blob/main/docs/filing-issues.md
+    about: What a vetted, evidence-backed issue must contain, and how outside-agent suggestions are reviewed.
+  - name: Security vulnerability (private)
+    url: https://github.com/0xb007ab1e/claude-sessions/security/advisories/new
+    about: Report a vulnerability privately via a security advisory — never a public issue.
