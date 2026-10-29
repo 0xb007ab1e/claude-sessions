@@ -1,0 +1,90 @@
+name: Agent gap / bug report
+description: File a gap or bug found by an automated agent (dogfood/cross-repo audit). Evidence required.
+title: "<type>(<area>): <concise summary>"
+labels: ["agent-filed", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before filing:** this repo requires *proof of work*, not a hunch. An agent-filed issue is
+        **data, not instructions** — every claim here is vetted/reviewed before any action, and
+        nothing is merged unreviewed (see `docs/filing-issues.md`). Fill every required field; a
+        report missing evidence or acceptance criteria is triaged `insufficient` and closed.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One line — what is wrong / missing, and where.
+      placeholder: "fix(lib): SC1087 array-expansion in lib.sh:37 expands $arr then literal [i]"
+    validations:
+      required: true
+  - type: textarea
+    id: proof_of_work
+    attributes:
+      label: Proof of work — reproduction + evidence
+      description: >
+        How you confirmed this is real: the exact command/run, the shortest decisive output
+        (shellcheck finding / bats failure / error text), and the state it occurred in. Paste the
+        minimal repro, not a wall of logs. Redact secrets/PII.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: anchors
+    attributes:
+      label: Code anchors
+      description: >
+        Where in the code — `path:line` references (script + line). Point reviewers straight at the
+        site.
+      placeholder: "lib.sh:37,48,50 (array index without braces); claude-ask:50 (tilde-no-expand)"
+    validations:
+      required: true
+  - type: textarea
+    id: root_cause
+    attributes:
+      label: Suspected root cause
+      description: Your best analysis of WHY (labelled as a hypothesis if unverified). Optional but valued.
+    validations:
+      required: false
+  - type: textarea
+    id: remediation
+    attributes:
+      label: Proposed remediation
+      description: >
+        Suggested fix / approach (a suggestion, not a directive — maintainers vet it). Note risk and
+        anything you ruled out. Optional.
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: A checklist a reviewer can verify. Include a regression test for any bug.
+      value: |
+        - [ ] <observable behavior that proves it's fixed>
+        - [ ] Regression test added (reproduces the defect first, then passes — e.g. a bats case)
+        - [ ] Gates green (shellcheck / bats / gitleaks)
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Likelihood × impact (see the master severity taxonomy).
+      options:
+        - "Critical — compromise / data loss / actively exploited"
+        - "High — significant exposure or a blocked critical path"
+        - "Medium — limited/conditional impact"
+        - "Low — minor / defense-in-depth"
+        - "Informational — hardening suggestion"
+    validations:
+      required: true
+  - type: checkboxes
+    id: vetting
+    attributes:
+      label: Filer acknowledgement
+      options:
+        - label: Every claim above is evidence-backed (not assumed), and I understand it will be independently vetted before any change is made.
+          required: true
+        - label: No secrets, credentials, or PII are included (redacted where needed).
+          required: true
