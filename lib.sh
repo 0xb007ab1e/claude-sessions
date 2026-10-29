@@ -53,6 +53,25 @@ cs_config_set() {
   fi
 }
 
+# Per-project notify mute. Returns 0 (muted) when CWD equals, or sits under, a
+# path listed in the mute file; 1 otherwise. No file => never muted, so behavior
+# is unchanged for every project not listed. Lines are trimmed; '#' starts a
+# comment; blank lines are ignored. cs_notify_muted [CWD]
+#   mute file: $CS_NOTIFY_MUTE_FILE, else <config dir>/notify-mute
+cs_notify_muted() {
+  local cwd="${1:-$PWD}" line
+  local mf="${CS_NOTIFY_MUTE_FILE:-$(cs_config_dir)/notify-mute}"
+  [ -f "$mf" ] || return 1
+  while IFS= read -r line; do
+    line="${line%%#*}"                   # strip comment
+    line="${line#"${line%%[![:space:]]*}"}"   # ltrim
+    line="${line%"${line##*[![:space:]]}"}"   # rtrim
+    [ -z "$line" ] && continue
+    case "$cwd" in "$line" | "$line"/*) return 0 ;; esac
+  done < "$mf"
+  return 1
+}
+
 # Path helpers for the directory picker's floor.
 # cs_dir_within ROOT PATH -> 0 if PATH is ROOT or below it.
 cs_dir_within() { case "$2/" in "$1/"*) return 0 ;; *) return 1 ;; esac; }

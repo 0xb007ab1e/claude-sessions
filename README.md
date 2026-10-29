@@ -175,6 +175,10 @@ Choose the backend in config (`notify = desktop | ntfy | pushover | none`);
 **high priority** with a 🔔 tag. The window is also flagged **yellow** in the
 status bar on a terminal bell. See `config.example`.
 
+**Mute per project:** list a directory in `~/.config/claude-sessions/notify-mute`
+(one path per line) to suppress notifications for instances in that tree; status
+tracking is unaffected. Override the file path with `$CS_NOTIFY_MUTE_FILE`.
+
 For **ntfy**, supply your topic slug with `claude-notify --set-topic [slug]`
 (auto-generates a random one if omitted) — `install.sh` also prompts for it when
 `notify = ntfy` and none is set. Subscribe to that exact topic in the ntfy app.

@@ -188,3 +188,25 @@ setup() {
   [ ! -e "$(cs_status_dir)/@1" ]           # both swept
   [ ! -e "$(cs_status_dir)/@99" ]
 }
+
+@test "cs_notify_muted: no mute file => not muted" {
+  export CS_NOTIFY_MUTE_FILE="$BATS_TEST_TMPDIR/none"
+  run cs_notify_muted /any/path
+  [ "$status" -eq 1 ]
+}
+
+@test "cs_notify_muted: exact path and subdirectory match, siblings do not" {
+  export CS_NOTIFY_MUTE_FILE="$BATS_TEST_TMPDIR/mute"
+  printf '# a comment\n\n  /home/x/proj  \n' > "$CS_NOTIFY_MUTE_FILE"
+  run cs_notify_muted /home/x/proj;      [ "$status" -eq 0 ]
+  run cs_notify_muted /home/x/proj/sub;  [ "$status" -eq 0 ]
+  run cs_notify_muted /home/x/project;   [ "$status" -eq 1 ]
+  run cs_notify_muted /home/x;           [ "$status" -eq 1 ]
+}
+
+@test "cs_notify_muted: comment-only and blank lines never match" {
+  export CS_NOTIFY_MUTE_FILE="$BATS_TEST_TMPDIR/mute2"
+  printf '\n   \n# /home/x/proj\n' > "$CS_NOTIFY_MUTE_FILE"
+  run cs_notify_muted /home/x/proj
+  [ "$status" -eq 1 ]
+}
