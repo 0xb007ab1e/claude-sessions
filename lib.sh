@@ -34,7 +34,7 @@ cs_config_get() {
   local key="$1" def="${2:-}" f v
   f="$(cs_config_file)"
   [ -f "$f" ] || { printf '%s' "$def"; return; }
-  v="$(sed -n "s/^[[:space:]]*$key[[:space:]]*=[[:space:]]*\(.*\)$/\1/p" "$f" | tail -1)"
+  v="$(sed -n "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\(.*\)$/\1/p" "$f" | tail -1)"
   v="${v%%#*}"                       # strip trailing comment
   v="${v#"${v%%[![:space:]]*}"}"     # ltrim
   v="${v%"${v##*[![:space:]]}"}"     # rtrim
@@ -45,9 +45,9 @@ cs_config_get() {
 cs_config_set() {
   local key="$1" val="$2" f tmp; f="$(cs_config_file)"
   mkdir -p "$(cs_config_dir)"; touch "$f"
-  if grep -qE "^[[:space:]]*$key[[:space:]]*=" "$f"; then
+  if grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$f"; then
     tmp="$(mktemp)"
-    sed "s#^[[:space:]]*$key[[:space:]]*=.*#$key = $val#" "$f" > "$tmp" && mv "$tmp" "$f"
+    sed "s#^[[:space:]]*${key}[[:space:]]*=.*#${key} = ${val}#" "$f" > "$tmp" && mv "$tmp" "$f"
   else
     printf '%s = %s\n' "$key" "$val" >> "$f"
   fi
