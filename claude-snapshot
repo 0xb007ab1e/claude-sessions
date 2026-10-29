@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# claude-snapshot — record the currently-active instances (name + directory) to
-# a snapshot file, so they can be reopened after a reboot. Run automatically by
-# the systemd service's ExecStop (before the session is killed), and usable
-# manually at any time.
+# claude-snapshot — record the currently-active instances AND ephemeral shells
+# (name, directory, kind, parent) to a snapshot file, so they can be reopened
+# after a reboot. Run automatically by the systemd service's ExecStop (before
+# the session is killed), and usable manually at any time.
 set -eo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
 snap="$(cs_state_dir)/last-session.tsv"
 mkdir -p "$(cs_state_dir)"
-cs_rows | awk -F'\t' -v OFS='\t' '$7=="active" && $12!="shell"{print $1, $5}' > "$snap"
-echo "snapshot: $(wc -l < "$snap" 2>/dev/null || echo 0) active instance(s) -> $snap"
+# Columns from cs_rows: 1 name, 5 cwd, 12 kind (instance|shell), 13 parent.
+cs_rows | awk -F'\t' -v OFS='\t' '$7=="active"{print $1, $5, ($12==""?"instance":$12), $13}' > "$snap"
+echo "snapshot: $(wc -l < "$snap" 2>/dev/null || echo 0) active window(s) -> $snap"

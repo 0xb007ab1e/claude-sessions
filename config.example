@@ -45,6 +45,13 @@ notify = desktop
 # when an instance needs approval. Also ping when an instance *finishes* a turn:
 notify_on_finish = false
 
+# Per-project notify mute. Notifications (approval + finished) are suppressed for
+# any instance whose working directory equals, or sits under, a path listed in
+# the mute file — one absolute path per line; '#' starts a comment; blanks are
+# ignored. Status tracking is unaffected. No file => nothing is muted.
+#   file: ~/.config/claude-sessions/notify-mute  (override with $CS_NOTIFY_MUTE_FILE)
+#   e.g.:  echo "$HOME/_src/_dev/noisy-project" >> ~/.config/claude-sessions/notify-mute
+
 # Reopen the previous session's instances automatically at boot (the systemd
 # service snapshots active instances on stop and reopens them on start).
 restore_on_boot = false

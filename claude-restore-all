@@ -18,9 +18,24 @@ snap="$(cs_state_dir)/last-session.tsv"
 [ -f "$snap" ] || { echo "no snapshot to restore."; exit 0; }
 
 n=0
-while IFS=$'\t' read -r name cwd; do
-  [ -n "$name" ] || continue
-  "$HERE/claude-new" -m continue -c "${cwd:-$HOME}" -n "$name" >/dev/null 2>&1 || true
-  n=$((n + 1))
-done < "$snap"
-echo "restored $n instance(s) from the last session"
+# Reopen instances first, then shells, so a shell groups under its restored
+# parent instance where possible. Older 2-column snapshots have an empty kind
+# and are treated as instances (backward compatible).
+restore_instances() {
+  while IFS=$'\t' read -r name cwd kind _; do
+    [ -n "$name" ] || continue
+    [ "$kind" = "shell" ] && continue
+    "$HERE/claude-new" -m continue -c "${cwd:-$HOME}" -n "$name" >/dev/null 2>&1 || true
+    n=$((n + 1))
+  done < "$snap"
+}
+restore_shells() {
+  while IFS=$'\t' read -r name cwd kind _; do
+    [ "$kind" = "shell" ] || continue
+    "$HERE/claude-shell" -c "${cwd:-$HOME}" -n "$name" >/dev/null 2>&1 || true
+    n=$((n + 1))
+  done < "$snap"
+}
+restore_instances
+restore_shells
+echo "restored $n window(s) from the last session"

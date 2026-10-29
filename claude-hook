@@ -18,17 +18,20 @@ wid="$(tmux display-message -p -t "$TMUX_PANE" '#{window_id}' 2>/dev/null || tru
 [ -n "$wid" ] || exit 0
 winname() { tmux display-message -p -t "$TMUX_PANE" '#W' 2>/dev/null || echo instance; }
 
+# Per-project notify mute lives in lib.sh (cs_notify_muted) so it is shared and
+# unit-tested; it skips notifications (not status tracking) for a muted cwd.
+
 case "$event" in
   UserPromptSubmit) cs_set_status "$wid" working ;;
   SessionStart)     cs_set_status "$wid" idle ;;
   Stop)
     cs_set_status "$wid" idle
-    [ "$(cs_config_get notify_on_finish false)" = "true" ] && "$HERE/claude-notify" finished "$(winname)" >/dev/null 2>&1 || true ;;
+    [ "$(cs_config_get notify_on_finish false)" = "true" ] && ! cs_notify_muted && "$HERE/claude-notify" finished "$(winname)" >/dev/null 2>&1 || true ;;
   Notification)
     ntype="$(printf '%s' "$payload" | grep -o '"notification_type"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')"
     if [ "$ntype" = permission_prompt ]; then
       cs_set_status "$wid" needs-approval
-      "$HERE/claude-notify" approval "$(winname)" >/dev/null 2>&1 || true
+      cs_notify_muted || "$HERE/claude-notify" approval "$(winname)" >/dev/null 2>&1 || true
     fi ;;
   SessionEnd)       cs_clear_status "$wid" ;;
 esac
