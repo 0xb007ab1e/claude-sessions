@@ -1,9 +1,31 @@
 #!/usr/bin/env bash
-# claude-status [bar] — summarize per-instance status (from the files claude-hook
-# writes) for the tmux status bar: how many instances need approval / are working.
-# Counts only LIVE windows. Prints a tmux-styled string (empty when nothing).
+# claude-status [bar|acct] — status-bar fragments.
+#   bar  — per-instance summary (from the files claude-hook writes): how many
+#          instances need approval / are working. Counts only LIVE windows.
+#   acct — active cswap account chip (⟳<num> <7d-pct>%), coloured by usage. Empty
+#          when cswap is absent. Lets the fleet see which account it runs under.
+# Prints a tmux-styled string (empty when nothing).
 set -euo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
+# --- active cswap account chip (own branch; cheap, offline: cswap usage cache) --
+if [ "${1:-bar}" = acct ]; then
+  command -v cswap >/dev/null 2>&1 || exit 0
+  j="$(cswap status --json 2>/dev/null)" || exit 0
+  [ -n "$j" ] || exit 0
+  IFS=$'\t' read -r num pct st < <(printf '%s' "$j" | jq -r '
+    [ (.active.number // ""),
+      (.active.usage.sevenDay.pct // 0 | floor),
+      (.active.usageStatus // "ok") ] | @tsv' 2>/dev/null) || exit 0
+  [ -n "${num:-}" ] || exit 0
+  case "$st" in
+    approaching|warning)      col="yellow" ;;
+    exhausted|limited|error)  col="red"    ;;
+    *)                        col="green"  ;;
+  esac
+  printf '#[fg=%s]⟳%s %s%%#[default] ' "$col" "$num" "${pct:-0}"
+  exit 0
+fi
 
 dir="$(cs_status_dir)"; [ -d "$dir" ] || exit 0
 live=" $(tmux list-windows -t "$(cs_session)" -F '#{window_id}' 2>/dev/null | tr '\n' ' ') "
@@ -24,5 +46,5 @@ case "${1:-bar}" in
     [ "$na" -gt 0 ] && out="#[fg=yellow,bold]⚠${na}#[default]"
     [ "$wk" -gt 0 ] && out="${out:+$out }#[fg=cyan]⚙${wk}#[default]"
     printf '%s' "$out" ;;
-  *) echo "usage: claude-status [bar]" >&2; exit 1 ;;
+  *) echo "usage: claude-status [bar|acct]" >&2; exit 1 ;;
 esac

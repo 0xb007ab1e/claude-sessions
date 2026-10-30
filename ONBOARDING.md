@@ -181,6 +181,11 @@ tapping a window name in the status bar.
   watchdog gives up and notifies once. Works under the boot service too.
 - **`claude` is not shadowed** — `cj` joins the session; plain `claude` still runs
   a normal, non-tmux instance.
+- **Multi-account** — if `cswap` is installed, the fleet launches through
+  `cj-cswap` (isolated per-account profiles; rotates near rate limits), and the
+  status bar shows the active account `⟳<num> <7d%>`. For terminal `cj`, add
+  `export CJ_CLAUDE="$HOME/.local/bin/cj-cswap"` to your shell profile. See the
+  README "Multi-account (cswap integration)" section.
 - Manage the boot service: `systemctl --user {status,restart} claude-tmux.service`.
 
 ## Develop / verify

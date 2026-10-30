@@ -152,6 +152,32 @@ claude-new -M sonnet          # new instance on sonnet (default effort)
 use **New (model)…** (`prefix + M`) to pick both from a menu. Set
 `default_model` / `default_effort` in config to apply them to every new instance.
 
+### Multi-account (cswap integration)
+
+When [`cswap`](https://pypi.org/project/claude-swap/) (the multi-account switcher)
+is on `PATH`, the fleet launches every instance through **`cj-cswap`** — a
+`CJ_CLAUDE` shim that runs each instance under an isolated cswap *per-account
+profile* (its own `CLAUDE_CONFIG_DIR` + `.credentials.json`). This keeps one
+session's OAuth token refresh from clobbering the shared login, and lets cswap
+rotate to another account when one nears its rate limit. The shim **fails open**:
+no cswap, and instances launch plain `claude` unchanged.
+
+- **Enabled for the tmux fleet automatically** — `install.sh` links `cj-cswap`
+  and `bindings.conf.in` sets `CJ_CLAUDE` (guarded on cswap being present), so
+  anything started from the menu / `cj` / `claude-new` inside tmux is covered.
+- **For terminal-launched `cj`** (outside a tmux instance), export it yourself:
+  ```bash
+  export CJ_CLAUDE="$HOME/.local/bin/cj-cswap"   # add to ~/.bashrc / ~/.profile
+  ```
+- **Pin one account** for every instance: `export CJ_CSWAP_ACCT=<num|email>`.
+  Otherwise the current directory's `cswap map` mapping (then cswap's default)
+  decides. Map a tree once with `cswap map <num|email> <path>`.
+- **Status bar** shows the active account: `⟳<num> <7d-pct>%`, green/yellow/red by
+  usage (`claude-status acct`). Switch/rotate with `cswap switch` (or `cswap tui`).
+
+cswap owns accounts, usage, and rotation; claude-sessions only launches through it
+and surfaces the active account — the two stay decoupled.
+
 ### Tab-completion & tests
 
 The installer sources `completions/claude-sessions.bash` from `~/.bashrc`
@@ -258,6 +284,7 @@ rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the
 | `claude-cd` / `claude-rename` / `claude-shell` | Move dir (resume) / rename / shell |
 | `claude-ask` | Run an interactive cmd (ssh-add/sudo/OTP) in a window so a human answers a prompt Claude can't type; `run`/`send`/`wait`/`close` |
 | `claude-model` | Pick model/effort, then open a new instance |
+| `cj-cswap` | `CJ_CLAUDE` shim: launch instances under isolated cswap per-account profiles (multi-account); fails open to plain `claude` |
 | `claude-popup` | Run a view inside a tmux popup |
 | `claude-session` | General launcher — one Claude per window in a named session |
 | `lib.sh` | Shared helpers: config, naming, colors, registry |
