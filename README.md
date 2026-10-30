@@ -296,7 +296,7 @@ if absent). If `loginctl enable-linger` needs privileges, run once:
 systemctl --user disable --now claude-tmux.service
 rm -f ~/.config/systemd/user/claude-tmux.service ~/.config/claude-sessions/bindings.conf
 rm -f ~/.local/share/applications/claude-join.desktop
-rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the real `claude`)
+rm -f ~/.local/bin/cj ~/.local/bin/cj-cswap ~/.local/bin/claude-*   # cj, the cswap shim + all claude-* tools (not the real `claude`)
 # then remove the `source-file …/tmux.conf` line from ~/.tmux.conf
 # and the claude-hook entries from ~/.claude/settings.json (restore settings.json.cs-bak)
 ```

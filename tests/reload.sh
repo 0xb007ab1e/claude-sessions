@@ -7,7 +7,7 @@
 #   unknown name            -> error, no respawn
 #   ephemeral shell         -> refused, no respawn
 #   no linked transcript    -> relink from the *.jsonl and resume it exactly
-set -eo pipefail
+set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
 

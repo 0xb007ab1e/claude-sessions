@@ -33,7 +33,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck bats tmux fzf jq
 
       - name: shellcheck (zero warnings)
-        run: shellcheck -S warning cj cj-cswap claude-* install.sh lib.sh
+        run: shellcheck -S warning cj cj-cswap claude-* install.sh lib.sh tests/reload.sh tests/cjcswap.sh
 
       - name: bats unit tests
         run: bats tests/lib.bats
