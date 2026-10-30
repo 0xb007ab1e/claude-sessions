@@ -220,3 +220,32 @@ setup() {
   [ "$(cs_config_get notify_on_finish false)" = true ]
   [ "$(cs_config_get name_scheme nato)" = project ]
 }
+
+@test "concurrent cs_record_active: registry lock prevents lost updates (#45)" {
+  cs_open                                  # migrate once up front
+  local i n
+  for i in $(seq 1 20); do
+    cs_record_active "n$i" red "@w$i" "/tmp/p$i" &
+  done
+  wait
+  # All 20 distinct window ids must survive — pre-lock, concurrent RMW dropped some.
+  n="$(jq -s '[.[] | select(.status=="active")] | length' "$(cs_registry)")"
+  [ "$n" -eq 20 ]
+  for i in $(seq 1 20); do
+    jq -se --arg w "@w$i" 'any(.[]; .window_id==$w and .status=="active")' \
+      "$(cs_registry)" >/dev/null
+  done
+}
+
+@test "concurrent record_active + reconcile: no lost updates, registry valid JSONL (#45)" {
+  cs_open
+  local i
+  for i in $(seq 1 12); do
+    cs_record_active "m$i" blue "@x$i" "/tmp/q$i" &
+    cs_reconcile &
+  done
+  wait
+  # every line is valid JSON (no torn write) and all 12 records present
+  jq -e . "$(cs_registry)" >/dev/null
+  [ "$(jq -s 'length' "$(cs_registry)")" -eq 12 ]
+}
