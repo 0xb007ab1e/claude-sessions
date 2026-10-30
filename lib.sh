@@ -416,19 +416,31 @@ cs_find_transcript() {
 # set is snapshotted once; each per-instance update is a locked RMW (lock released
 # across the slow cs_find_transcript `find`, so writers aren't blocked on I/O).
 cs_link_transcripts() {
-  local reg wid cwd started newt; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
-  while IFS=$'\t' read -r wid cwd started; do
-    [ -n "$wid" ] || continue
-    newt="$(cs_find_transcript "$cwd" "$started")"; [ -n "$newt" ] || continue
-    cs_registry_locked _cs_link_one "$wid" "$newt"
-  done < <(jq -r 'select(.status=="active" and (.transcript==null or .transcript==""))
-                  | [.window_id,.cwd,(.started|tostring)] | @tsv' "$reg" 2>/dev/null)
+  local reg wid cwd started newt pairs map; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
+  # Phase 1 (lock-free): resolve the new transcript id for each active record that
+  # lacks one. cs_find_transcript does a slow `find`, so we collect wid<TAB>id pairs
+  # WITHOUT rewriting the registry (the old code rewrote the whole file per instance
+  # -> O(N^2)).
+  pairs="$(
+    while IFS=$'\t' read -r wid cwd started; do
+      [ -n "$wid" ] || continue
+      newt="$(cs_find_transcript "$cwd" "$started")"; [ -n "$newt" ] || continue
+      printf '%s\t%s\n' "$wid" "$newt"
+    done < <(jq -r 'select(.status=="active" and (.transcript==null or .transcript==""))
+                    | [.window_id,.cwd,(.started|tostring)] | @tsv' "$reg" 2>/dev/null)
+  )"
+  [ -n "$pairs" ] || return 0
+  # Build one {window_id: transcript} map, then apply it in a SINGLE locked rewrite.
+  map="$(printf '%s\n' "$pairs" | jq -R -s -c \
+    'split("\n") | map(select(length>0) | split("\t")) | map({(.[0]): .[1]}) | add')"
+  [ -n "$map" ] && [ "$map" != null ] || return 0
+  cs_registry_locked _cs_link_apply "$map"
 }
-_cs_link_one() {
+_cs_link_apply() {
   local reg tmp; reg="$(cs_registry)"; [ -s "$reg" ] || return 0; tmp="$(mktemp)"
-  jq -c --arg w "$1" --arg t "$2" \
-    'if .window_id==$w and .status=="active" and (.transcript==null or .transcript=="")
-     then .transcript=$t else . end' "$reg" > "$tmp" && mv "$tmp" "$reg"
+  jq -c --argjson m "$1" \
+    'if .status=="active" and (.transcript==null or .transcript=="") and ($m[.window_id] != null)
+     then .transcript=$m[.window_id] else . end' "$reg" > "$tmp" && mv "$tmp" "$reg"
 }
 
 # --- per-instance live status (written by claude-hook, read by claude-ls/bar) -
