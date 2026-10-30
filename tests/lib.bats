@@ -313,3 +313,43 @@ E
   [ "$(printf '%s' "$row" | cut -f6)" = opus ]
   [ "$(printf '%s' "$row" | cut -f7)" = high ]
 }
+
+@test "cs_window_color: returns a managed window's colour, empty otherwise (#56)" {
+  cs_record_active alpha 42 @a /tmp/a
+  [ "$(cs_window_color @a)" = 42 ]
+  [ -z "$(cs_window_color @nope)" ]
+}
+
+@test "cs_spawn_grouped: grouped under managed parent, inherits colour, kind=shell (#56)" {
+  cs_record_active par 99 @p /tmp/par           # a managed parent window, colour 99
+  local tlog="$BATS_TEST_TMPDIR/tmux.log"; : > "$tlog"
+  export STUB_PARENT=@p STUB_TLOG="$tlog"
+  tmux() { case "$1" in
+    display-message) printf '%s\n' "$STUB_PARENT" ;;
+    new-window) printf '%s\n' "@new"; printf 'NW %s\n' "$*" >> "$STUB_TLOG" ;;
+    *) : ;; esac; }
+  read -r wid parent < <(cs_spawn_grouped shellA /tmp/x off)
+  [ "$wid" = @new ]; [ "$parent" = @p ]
+  grep -q -- '-a -t' "$tlog"                     # placed adjacent to the parent
+  grep -q -- ':@p'   "$tlog"
+  grep -q -- '-c /tmp/x' "$tlog"
+  local row; row="$(cs_rows | awk -F'\t' '$1=="shellA"{print; exit}')"
+  [ "$(printf '%s' "$row" | cut -f2)"  = 99 ]    # inherited parent colour
+  [ "$(printf '%s' "$row" | cut -f12)" = shell ] # kind=shell
+  [ "$(printf '%s' "$row" | cut -f13)" = @p ]    # parent recorded
+}
+
+@test "cs_spawn_grouped: standalone grey when no managed parent (#56)" {
+  local tlog="$BATS_TEST_TMPDIR/tmux2.log"; : > "$tlog"
+  export STUB_PARENT=@orphan STUB_TLOG="$tlog"   # parent not in the registry
+  tmux() { case "$1" in
+    display-message) printf '%s\n' "$STUB_PARENT" ;;
+    new-window) printf '%s\n' "@new2"; printf 'NW %s\n' "$*" >> "$STUB_TLOG" ;;
+    *) : ;; esac; }
+  read -r wid parent < <(cs_spawn_grouped shellB /tmp/y off)
+  [ "$wid" = @new2 ]; [ -z "$parent" ]
+  ! grep -q -- '-a ' "$tlog"                      # NOT grouped
+  local row; row="$(cs_rows | awk -F'\t' '$1=="shellB"{print; exit}')"
+  [ "$(printf '%s' "$row" | cut -f2)"  = 244 ]    # standalone grey
+  [ -z "$(printf '%s' "$row" | cut -f13)" ]       # no parent
+}
