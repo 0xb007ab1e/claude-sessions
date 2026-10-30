@@ -78,4 +78,4 @@ else                          cmd="$REAL_CLAUDE --continue$extra"; fi
 # Exponential backoff (base * 2^n), then respawn the dead pane in place.
 case "$base" in ''|*[!0-9]*) base=5 ;; esac
 sleep "$(( base * (1 << n) ))" 2>/dev/null || true
-tmux respawn-pane -t "$S:$wid" -c "$cwd" "exec $cmd" 2>/dev/null || true
+tmux respawn-pane -t "$S:$wid" -c "$cwd" "exec $(cs_override_env_prefix "$wid")$cmd" 2>/dev/null || true

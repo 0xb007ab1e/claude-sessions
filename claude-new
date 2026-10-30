@@ -12,11 +12,15 @@
 #     -M MODEL   model for this instance: alias (sonnet|opus|haiku) or full id
 #     -E EFFORT  effort for this instance: low | medium | high | xhigh | max
 #     -D         prompt for the directory (editable, prefilled) before launching
+#     -O | --override   launch with the usage-guard bypass (CLAUDE_USAGE_OVERRIDE=1)
 set -euo pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 
-MODE=new DIR="" NAME="" SCHEME="" SID="" MODEL="" EFFORT="" ASKDIR=0
-while getopts ":m:c:n:a:i:M:E:Dh" o; do
+MODE=new DIR="" NAME="" SCHEME="" SID="" MODEL="" EFFORT="" ASKDIR=0 OVR=0
+# Accept the long form --override as an alias for -O (getopts is short-only).
+_args=(); for _a in "$@"; do case "$_a" in --override) _args+=(-O) ;; *) _args+=("$_a") ;; esac; done
+set -- "${_args[@]}"
+while getopts ":m:c:n:a:i:M:E:DOh" o; do
   case "$o" in
     m) MODE="$OPTARG" ;;
     c) DIR="$OPTARG" ;;
@@ -26,7 +30,8 @@ while getopts ":m:c:n:a:i:M:E:Dh" o; do
     M) MODEL="$OPTARG" ;;
     E) EFFORT="$OPTARG" ;;
     D) ASKDIR=1 ;;
-    h) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    O) OVR=1 ;;
+    h) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "claude-new: bad option" >&2; exit 1 ;;
   esac
 done
@@ -64,6 +69,8 @@ case "$MODE" in
   continue) cmd="$REAL_CLAUDE --continue$extra" ;;
   *)        cmd="$REAL_CLAUDE$extra" ;;
 esac
+# -O/--override: launch with the usage-guard bypass set (CLAUDE_USAGE_OVERRIDE=1).
+[ "$OVR" = 1 ] && cmd="env CLAUDE_USAGE_OVERRIDE=1 $cmd"
 
 S="$(cs_session)"
 tmux -f "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/tmux.conf" \
@@ -73,6 +80,8 @@ tmux -f "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/tmux.conf" \
 # The trailing ':' targets the session and lets tmux pick the next free index
 # (a bare '-t S' tries base-index and fails with "index 1 in use").
 wid="$(tmux new-window -t "$S:" -c "$DIR" -P -F '#{window_id}' "exec $cmd")"
+# Persist the override intent for this window so reloads / watchdog respawns keep it.
+[ "$OVR" = 1 ] && cs_override_set "$wid"
 
 # Name + color: explicit name, else auto per scheme.
 if [ -n "$NAME" ]; then
