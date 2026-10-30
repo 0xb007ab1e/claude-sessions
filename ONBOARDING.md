@@ -186,6 +186,10 @@ tapping a window name in the status bar.
   status bar shows the active account `⟳<num> <7d%>`. For terminal `cj`, add
   `export CJ_CLAUDE="$HOME/.local/bin/cj-cswap"` to your shell profile. See the
   README "Multi-account (cswap integration)" section.
+- **Hot-reload in place** — `claude-reload` (menu **Reload (hot)** / `prefix + H`)
+  kills and relaunches a live instance with `--resume`, keeping the conversation,
+  so it adopts a new account / config without a new window. Typical use: after
+  `cswap switch`, reload each live session onto the new account.
 - Manage the boot service: `systemctl --user {status,restart} claude-tmux.service`.
 
 ## Develop / verify

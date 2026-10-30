@@ -27,6 +27,7 @@ bind C display-menu -T "#[align=centre,bold] claude " \
         "Rename"            e { display-popup -E -w 60% -h 28% "@BIN@/claude-rename" } \
         "Change dir"        c { display-popup -E -w 80% -h 70% "@BIN@/claude-cd" } \
         "Usage / cost"      u { display-popup -E -w 78% -h 60% "@BIN@/claude-popup cost" } \
+        "Reload (hot)"      g { run-shell "@BIN@/claude-reload" } \
         "Stop"              x { confirm-before -p "stop instance #W? (y/n)" kill-window } } \
   "▸ Conversations"  v { display-menu -T "#[align=centre,bold] conversations " \
         "Resume"            r { run-shell "@BIN@/claude-new -m resume" } \
@@ -47,6 +48,7 @@ bind -n F9 display-menu -T "#[align=centre,bold] claude " \
         "Rename"            e { display-popup -E -w 60% -h 28% "@BIN@/claude-rename" } \
         "Change dir"        c { display-popup -E -w 80% -h 70% "@BIN@/claude-cd" } \
         "Usage / cost"      u { display-popup -E -w 78% -h 60% "@BIN@/claude-popup cost" } \
+        "Reload (hot)"      g { run-shell "@BIN@/claude-reload" } \
         "Stop"              x { confirm-before -p "stop instance #W? (y/n)" kill-window } } \
   "▸ Conversations"  v { display-menu -T "#[align=centre,bold] conversations " \
         "Resume"            r { run-shell "@BIN@/claude-new -m resume" } \
@@ -67,6 +69,7 @@ bind -n MouseDown1StatusLeft display-menu -T "#[align=centre,bold] claude " \
         "Rename"            e { display-popup -E -w 60% -h 28% "@BIN@/claude-rename" } \
         "Change dir"        c { display-popup -E -w 80% -h 70% "@BIN@/claude-cd" } \
         "Usage / cost"      u { display-popup -E -w 78% -h 60% "@BIN@/claude-popup cost" } \
+        "Reload (hot)"      g { run-shell "@BIN@/claude-reload" } \
         "Stop"              x { confirm-before -p "stop instance #W? (y/n)" kill-window } } \
   "▸ Conversations"  v { display-menu -T "#[align=centre,bold] conversations " \
         "Resume"            r { run-shell "@BIN@/claude-new -m resume" } \
@@ -85,6 +88,7 @@ bind N run-shell "@BIN@/claude-new"
 bind D display-popup -E -w 80% -h 70% "@BIN@/claude-new -D"
 bind M display-popup -E -w 60% -h 50% "@BIN@/claude-model"
 bind G display-popup -E -w 80% -h 70% "@BIN@/claude-cd"
+bind H run-shell "@BIN@/claude-reload"
 bind B run-shell "@BIN@/claude-shell"
 bind E display-popup -E -w 60% -h 28% "@BIN@/claude-rename"
 bind R run-shell "@BIN@/claude-new -m resume"

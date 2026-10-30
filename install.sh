@@ -41,7 +41,7 @@ mkdir -p "$BIN" "$APPS" "$UNITDIR" "$CSCONF" "$STATE"
 for f in cj claude-session claude-ls claude-new claude-restore claude-popup \
          claude-notify claude-snapshot claude-restore-all claude-rename claude-shell \
          claude-pick claude-cd claude-hook claude-status claude-cost claude-model claude-watchdog claude-ask \
-         cj-cswap; do
+         claude-reload cj-cswap; do
   ln -sf "$REPO/$f" "$BIN/$f"
   echo "linked   $BIN/$f"
 done

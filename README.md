@@ -83,6 +83,7 @@ instances flip to *closed* automatically when their window goes away.
 | `prefix + G` | change the current instance's directory (relaunch + resume) |
 | `prefix + B` | open an interactive shell in the current dir ("Shell here") |
 | `prefix + R` | resume a past conversation |
+| `prefix + H` | hot-reload the current instance in place ("Reload (hot)") |
 | `prefix + O` | reopen a closed instance |
 | `prefix + X` | stop the current instance (confirm) |
 | `prefix + ?` | cheat sheet |
@@ -178,6 +179,29 @@ no cswap, and instances launch plain `claude` unchanged.
 cswap owns accounts, usage, and rotation; claude-sessions only launches through it
 and surfaces the active account — the two stay decoupled.
 
+### Hot-reload in place (`claude-reload`)
+
+Reload a live instance **in its own window, keeping the conversation** — kill the
+running `claude` and relaunch it with `--resume`, same dir/model/effort, so it
+picks up new environment (a swapped cswap account, a changed `CJ_CLAUDE`, updated
+config, an upgraded `claude`) **without a new window or losing history**. The
+transcript Claude Code persists is the snapshot; `--resume` continues it. It
+launches through `${CJ_CLAUDE:-claude}`, so the reloaded instance adopts the
+current account/profile just like a fresh one.
+
+```bash
+claude-reload            # reload the window you're in (deferred — fires after this returns)
+claude-reload -n NAME    # reload a specific instance by name
+```
+
+On a phone / in tmux: **Reload (hot)** in the Instances menu, or `prefix + H`.
+Reloading the current window is **deferred** — the respawn fires ~0.3s after the
+command returns — so the trigger (the menu, or the session reloading itself) exits
+cleanly before its pane is replaced. Ephemeral shells are not reloadable. This is
+the deliberate twin of the watchdog's crash-time respawn: same resume path, your
+call instead of a crash. Typical use: after `cswap switch`, run `claude-reload` in
+each live session to continue it on the new account.
+
 ### Tab-completion & tests
 
 The installer sources `completions/claude-sessions.bash` from `~/.bashrc`
@@ -188,7 +212,9 @@ The installer sources `completions/claude-sessions.bash` from `~/.bashrc`
 a pane **and** runs `claude-new` through a real `display-popup`, on a private
 socket; it skips cleanly without `tmux`/`fzf`. The watchdog's crash/respawn/
 give-up logic has its own test against a fake `tmux` in `tests/watchdog.sh`
-(`bash tests/watchdog.sh`).
+(`bash tests/watchdog.sh`); `claude-reload`'s target resolution + respawn/resume
+(incl. deferred self-reload) is tested the same way in `tests/reload.sh`
+(`bash tests/reload.sh`).
 
 ### Attention notifications
 
@@ -284,6 +310,7 @@ rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the
 | `claude-cd` / `claude-rename` / `claude-shell` | Move dir (resume) / rename / shell |
 | `claude-ask` | Run an interactive cmd (ssh-add/sudo/OTP) in a window so a human answers a prompt Claude can't type; `run`/`send`/`wait`/`close` |
 | `claude-model` | Pick model/effort, then open a new instance |
+| `claude-reload` | Hot-reload a live instance in place (resume same conversation; pick up new env/account). `-n NAME`; deferred for the current window |
 | `cj-cswap` | `CJ_CLAUDE` shim: launch instances under isolated cswap per-account profiles (multi-account); fails open to plain `claude` |
 | `claude-popup` | Run a view inside a tmux popup |
 | `claude-session` | General launcher — one Claude per window in a named session |
