@@ -438,6 +438,20 @@ _cs_status_file() { echo "$(cs_status_dir)/$(printf '%s' "$1" | tr -c 'A-Za-z0-9
 cs_set_status()   { mkdir -p "$(cs_status_dir)"; printf '%s\t%s\n' "$2" "$(date +%s)" > "$(_cs_status_file "$1")"; }
 cs_clear_status() { rm -f "$(_cs_status_file "$1")" 2>/dev/null || true; }
 
+# --- per-instance usage-guard override (CLAUDE_USAGE_OVERRIDE bypass) ---------
+# A per-window marker records that an instance should launch with
+# CLAUDE_USAGE_OVERRIDE=1 (the usage_guard bypass). claude-override toggles it;
+# claude-reload / claude-new / claude-watchdog apply it by prefixing the launch
+# with the env. The marker is the durable intent, so override survives a reload
+# or a watchdog crash-respawn. (Persisted alongside status, per window id.)
+cs_override_dir()   { echo "$(cs_state_dir)/override"; }
+_cs_override_file() { echo "$(cs_override_dir)/$(printf '%s' "$1" | tr -c 'A-Za-z0-9@_-' '_')"; }
+cs_override_on()    { [ -f "$(_cs_override_file "$1")" ]; }   # 0 (true) when set
+cs_override_set()   { mkdir -p "$(cs_override_dir)"; : > "$(_cs_override_file "$1")"; }
+cs_override_clear() { rm -f "$(_cs_override_file "$1")" 2>/dev/null || true; }
+# Shell-quoted launch prefix applying the override for WID (empty when off).
+cs_override_env_prefix() { cs_override_on "$1" && printf 'env CLAUDE_USAGE_OVERRIDE=1 ' || true; }
+
 # Mark active records closed when their window no longer exists, then link ids.
 cs_reconcile() {
   cs_open

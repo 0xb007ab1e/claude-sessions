@@ -202,6 +202,27 @@ the deliberate twin of the watchdog's crash-time respawn: same resume path, your
 call instead of a crash. Typical use: after `cswap switch`, run `claude-reload` in
 each live session to continue it on the new account.
 
+### Usage-guard override (`claude-override`)
+
+If a usage-guard (a `PreToolUse` hook that reads `CLAUDE_USAGE_OVERRIDE`) is
+blocking an instance at its limit, toggle the bypass **for that instance** and
+hot-reload it so the change takes effect — no new window, conversation resumed:
+
+```bash
+claude-override on          # bypass the usage guard for this instance (then reload)
+claude-override off         # restore normal gating (then reload)
+claude-override status      # show the current state
+claude-override on -n NAME  # target another instance by name
+claude-override on --no-reload   # set the marker only; applies on next (re)launch
+```
+
+`on` sets `CLAUDE_USAGE_OVERRIDE=1` in the instance's environment (via a per-window
+marker under the state dir) and reloads it through `claude-reload`; `off` clears it
+and reloads. The marker is durable, so the override **survives a reload and a
+watchdog crash-respawn**. Launch a fresh instance already overridden with
+`cj --override` / `claude-new --override` (`-O`). Reload is skipped when the state
+is already as asked, or with `--no-reload`.
+
 ### Tab-completion & tests
 
 The installer sources `completions/claude-sessions.bash` from `~/.bashrc`

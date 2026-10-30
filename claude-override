@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# claude-override on|off|status [-n NAME] [--no-reload] — toggle the usage-guard
+# bypass (CLAUDE_USAGE_OVERRIDE=1) for an instance and hot-reload it so the change
+# takes effect now. Target: the current window (default) or -n NAME.
+#   on      set the bypass (usage_guard never blocks this instance's tool calls)
+#   off     restore normal gating
+#   status  print the current state, change nothing
+# on/off hot-reload the instance (claude-reload, resuming its conversation) so the
+# live process picks up the env — skipped with --no-reload or when already in state.
+set -euo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+source "$HERE/lib.sh"
+
+action="" name="" reload=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    on|off|status) action="$1" ;;
+    -n|--name) name="${2:-}"; shift ;;
+    --no-reload) reload=0 ;;
+    -h|--help) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "claude-override: unknown arg '$1' (use on|off|status [-n NAME] [--no-reload])" >&2; exit 2 ;;
+  esac
+  shift
+done
+[ -n "$action" ] || { echo "claude-override: need on|off|status" >&2; exit 2; }
+
+S="$(cs_session)"
+tmux has-session -t "$S" 2>/dev/null || { echo "claude-override: no '$S' session" >&2; exit 1; }
+
+# Resolve the target window id + its registry row (same scheme as claude-reload).
+if [ -n "$name" ]; then
+  row="$(cs_rows | awk -F'\t' -v n="$name" '$1==n && $7=="active" && !f{print; f=1}')"
+  [ -n "$row" ] || { echo "claude-override: no active instance named '$name'" >&2; exit 1; }
+  self=0
+else
+  wid="$(tmux display-message -p ${TMUX_PANE:+-t "$TMUX_PANE"} '#{window_id}' 2>/dev/null || true)"
+  [ -n "$wid" ] || { echo "claude-override: cannot determine current window (run inside the session, or pass -n NAME)" >&2; exit 1; }
+  row="$(cs_rows | awk -F'\t' -v w="$wid" '$4==w && $7=="active" && !f{print; f=1}')"
+  [ -n "$row" ] || { echo "claude-override: current window is not a managed instance" >&2; exit 1; }
+  self=1
+fi
+wid="$(cs_field 4 "$row")"
+label="$(cs_field 1 "$row") [$wid]"
+cur=off; cs_override_on "$wid" && cur=on
+
+case "$action" in
+  status) echo "claude-override: $label is $cur"; exit 0 ;;
+  on)
+    [ "$cur" = on ] && { echo "claude-override: $label already on" >&2; exit 0; }
+    cs_override_set "$wid"; echo "claude-override: $label -> on (CLAUDE_USAGE_OVERRIDE=1)" >&2 ;;
+  off)
+    [ "$cur" = off ] && { echo "claude-override: $label already off" >&2; exit 0; }
+    cs_override_clear "$wid"; echo "claude-override: $label -> off" >&2 ;;
+esac
+
+# Apply: hot-reload so the running process adopts the new env. Reloading the
+# current window defers (~0.3s) in claude-reload so this command returns first.
+if [ "$reload" = 1 ]; then
+  if [ "$self" = 1 ]; then "$HERE/claude-reload"; else "$HERE/claude-reload" -n "$(cs_field 1 "$row")"; fi
+else
+  echo "claude-override: --no-reload — applies on the instance's next (re)launch" >&2
+fi

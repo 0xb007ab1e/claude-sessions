@@ -249,3 +249,20 @@ setup() {
   jq -e . "$(cs_registry)" >/dev/null
   [ "$(jq -s 'length' "$(cs_registry)")" -eq 12 ]
 }
+
+@test "cs_override: set/on/clear + launch env prefix" {
+  run cs_override_on "@w1"; [ "$status" -ne 0 ]              # off initially
+  [ -z "$(cs_override_env_prefix "@w1")" ]
+  cs_override_set "@w1"
+  run cs_override_on "@w1"; [ "$status" -eq 0 ]              # on after set
+  [ "$(cs_override_env_prefix "@w1")" = "env CLAUDE_USAGE_OVERRIDE=1 " ]
+  cs_override_clear "@w1"
+  run cs_override_on "@w1"; [ "$status" -ne 0 ]              # off after clear
+  [ -z "$(cs_override_env_prefix "@w1")" ]
+}
+
+@test "cs_override: per-window isolation (sanitized ids don't collide)" {
+  cs_override_set "@w2"
+  run cs_override_on "@w2"; [ "$status" -eq 0 ]
+  run cs_override_on "@w3"; [ "$status" -ne 0 ]              # untouched window stays off
+}

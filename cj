@@ -46,7 +46,7 @@ REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
 T=(tmux -f "$CONF")
 
 AUTONAME=0 SCHEME="" NAME="" MODEL="" EFFORT=""
-EXPLICIT=0 PINSET="" PINSAVE=0 PINREQ=0
+EXPLICIT=0 PINSET="" PINSAVE=0 PINREQ=0 OVR=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -a|--auto) AUTONAME=1; EXPLICIT=1; shift
@@ -54,6 +54,7 @@ while [ $# -gt 0 ]; do
     -n|--name)   NAME="${2:-}"; AUTONAME=1; EXPLICIT=1; shift 2 ;;
     -M|--model)  MODEL="${2:-}"; EXPLICIT=1; shift 2 ;;
     -E|--effort) EFFORT="${2:-}"; EXPLICIT=1; shift 2 ;;
+    -O|--override) OVR=1; EXPLICIT=1; shift ;;
     -p|--pin)  PINREQ=1; shift
                case "${1:-}" in ""|-*) : ;; *) PINSET="$1"; PINSAVE=1; shift ;; esac ;;
     --unpin)   cs_config_set pin_instance ""; echo "cj: pin cleared" >&2; exit 0 ;;
@@ -62,6 +63,9 @@ while [ $# -gt 0 ]; do
     *)         EXPLICIT=1; break ;;
   esac
 done
+# -O/--override: launch the instance with the usage-guard bypass set.
+OVRPRE=(); [ "$OVR" = 1 ] && OVRPRE=(env CLAUDE_USAGE_OVERRIDE=1)
+OVRSTR=""; [ "$OVR" = 1 ] && OVRSTR="env CLAUDE_USAGE_OVERRIDE=1 "
 # Config can make auto-naming the default.
 [ "$AUTONAME" -eq 0 ] && [ "$(cs_config_get auto_name false)" = "true" ] && AUTONAME=1
 
@@ -99,7 +103,10 @@ set -- "${EXTRA[@]}" "$@"
 
 # Already inside tmux: just run the real CLI here (no nesting).
 if [ -n "${TMUX:-}" ]; then
-  exec "$REAL_CLAUDE" "$@"
+  if [ "$OVR" = 1 ]; then
+    w="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"; [ -n "$w" ] && cs_override_set "$w"
+  fi
+  exec "${OVRPRE[@]}" "$REAL_CLAUDE" "$@"
 fi
 
 # Ensure the session exists (fallback if the boot service hasn't run).
@@ -110,10 +117,12 @@ idle="$("${T[@]}" list-windows -t "$S" -F '#{window_index} #{pane_current_comman
         | awk '$2 ~ /^(bash|zsh|sh|fish|-bash)$/ {print $1; exit}')"
 if [ -n "$idle" ]; then
   wid="$("${T[@]}" display-message -t "$S:$idle" -p '#{window_id}')"
-  "${T[@]}" send-keys -t "$S:$idle" "exec $REAL_CLAUDE $*" C-m
+  "${T[@]}" send-keys -t "$S:$idle" "exec ${OVRSTR}$REAL_CLAUDE $*" C-m
 else
-  wid="$("${T[@]}" new-window -t "$S:" -P -F '#{window_id}' "exec $REAL_CLAUDE $*")"
+  wid="$("${T[@]}" new-window -t "$S:" -P -F '#{window_id}' "exec ${OVRSTR}$REAL_CLAUDE $*")"
 fi
+# Persist the override intent so reloads / watchdog respawns keep it.
+[ "$OVR" = 1 ] && cs_override_set "$wid"
 
 if [ "$AUTONAME" -eq 1 ]; then
   if [ -n "$NAME" ]; then

@@ -71,10 +71,10 @@ echo "claude-reload: $(cs_field 1 "$row") [$wid] ${transcript:+resume $transcrip
 if [ "$self" = 1 ]; then
   # Defer so THIS command (and the Claude that may have invoked it) returns first,
   # then the pane is killed and respawned on the resumed conversation.
-  respawn="tmux respawn-pane -k -t $(printf %q "$S:$wid") -c $(printf %q "$cwd") $(printf %q "exec $cmd")"
+  respawn="tmux respawn-pane -k -t $(printf %q "$S:$wid") -c $(printf %q "$cwd") $(printf %q "exec $(cs_override_env_prefix "$wid")$cmd")"
   tmux run-shell -b "sleep 0.3; $respawn" 2>/dev/null || true
   echo "claude-reload: reloading this window in place…" >&2
 else
-  tmux respawn-pane -k -t "$S:$wid" -c "$cwd" "exec $cmd" 2>/dev/null \
+  tmux respawn-pane -k -t "$S:$wid" -c "$cwd" "exec $(cs_override_env_prefix "$wid")$cmd" 2>/dev/null \
     || { echo "claude-reload: respawn failed for $wid" >&2; exit 1; }
 fi
