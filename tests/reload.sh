@@ -80,4 +80,18 @@ if grep -q "respawn-pane -k -t _rl:@6 -c $projB exec claude --resume relinked-uu
   echo "PASS [no transcript -> relinked + resume exact]"
 else echo "FAIL [relink]"; cat "$TMUX_LOG"; rc=1; fi
 
+# 6) SECURITY regression (review #1, CWE-78): a hostile transcript basename must
+# reach the respawn command SHELL-QUOTED, so the sh -c that tmux runs can't
+# execute an injected `;`-separated command. Assert the %q-escaped form is present
+# and the bare injection (`; touch`) is NOT.
+unset CLAUDE_CONFIG_DIR
+PAYLOAD='u;touch /tmp/pwn'
+( source "$REPO/lib.sh"; cs_record_active evil 42 @8 /home/u/evil "$PAYLOAD" opus high )
+: > "$TMUX_LOG"
+"$RL" -n evil >/dev/null 2>&1 || true
+Q="$(printf %q "$PAYLOAD")"
+if grep -qF -- "--resume $Q" "$TMUX_LOG" && ! grep -qF -- '--resume u;touch' "$TMUX_LOG"; then
+  echo "PASS [hostile transcript -> shell-quoted, no injection]"
+else echo "FAIL [injection quoting]"; cat "$TMUX_LOG"; rc=1; fi
+
 exit $rc

@@ -47,6 +47,9 @@ jobs:
       - name: reload suite
         run: bash tests/reload.sh
 
+      - name: cj-cswap suite
+        run: bash tests/cjcswap.sh
+
       - name: shfmt format drift (advisory)
         continue-on-error: true
         run: |

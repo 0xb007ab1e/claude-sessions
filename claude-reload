@@ -52,14 +52,19 @@ transcript="$(cs_field 9 "$row")"; model="$(cs_field 10 "$row")"; effort="$(cs_f
 # never linked, find it from cwd+start time (and persist it); else --continue.
 if [ -z "$transcript" ]; then
   transcript="$(cs_find_transcript "$cwd" "$started")" || true
-  [ -n "$transcript" ] && cs_link_transcripts || true
+  if [ -n "$transcript" ]; then cs_link_transcripts || true; fi
 fi
 
 REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
 REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
-extra=""; [ -n "$model" ] && extra+=" --model $model"; [ -n "$effort" ] && extra+=" --effort $effort"
-if [ -n "$transcript" ]; then cmd="$REAL_CLAUDE --resume $transcript$extra"
-else                          cmd="$REAL_CLAUDE --continue$extra"; fi
+# Build the launch command with every interpolant shell-quoted. tmux respawn-pane
+# re-parses this string through /bin/sh -c, so an unquoted $transcript (a disk-
+# sourced *.jsonl basename) or $model/$effort would otherwise be shell-evaluated.
+cmd="$(printf %q "$REAL_CLAUDE")"
+if [ -n "$transcript" ]; then cmd+=" --resume $(printf %q "$transcript")"
+else                          cmd+=" --continue"; fi
+[ -n "$model" ]  && cmd+=" --model $(printf %q "$model")"
+[ -n "$effort" ] && cmd+=" --effort $(printf %q "$effort")"
 
 echo "claude-reload: $(cs_field 1 "$row") [$wid] ${transcript:+resume $transcript}${transcript:+ }${transcript:+}in $cwd" >&2
 

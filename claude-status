@@ -17,7 +17,9 @@ if [ "${1:-bar}" = acct ]; then
     [ (.active.number // ""),
       (.active.usage.sevenDay.pct // 0 | floor),
       (.active.usageStatus // "ok") ] | @tsv' 2>/dev/null) || exit 0
-  [ -n "${num:-}" ] || exit 0
+  num="${num//[^0-9]/}"            # digits only: tmux interprets #[...]/#(...) in #() output
+  pct="${pct//[^0-9]/}"
+  [ -n "$num" ] || exit 0
   case "$st" in
     approaching|warning)      col="yellow" ;;
     exhausted|limited|error)  col="red"    ;;
