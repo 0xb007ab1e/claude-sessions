@@ -38,25 +38,10 @@ DIR="${DIR/#\~/$HOME}"
 S="$(cs_session)"
 tmux -f "$HERE/tmux.conf" has-session -t "$S" 2>/dev/null || tmux new-session -d -s "$S"
 
-# Parent = the window active when claude-shell was invoked, so the shell groups
-# under that instance and inherits its colour. If there's no managed parent
-# (e.g. launched from the boot shell), fall back to a standalone grey shell.
-parent="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
-# No early `exit` in awk: it would close the pipe and SIGPIPE jq (cs_rows), which
-# pipefail+set -e turn into a 141. `!f` keeps the first match but drains all input.
-pcolor="$(cs_rows | awk -F'\t' -v p="$parent" '$4==p && $7=="active" && !f{print $2; f=1}')"
-[ -n "$pcolor" ] || { pcolor=244; parent=""; }
-
-# A window with no command runs the user's interactive login shell. Place it
-# right after its parent (contiguous = grouped, taskbar-style).
-if [ -n "$parent" ]; then
-  wid="$(tmux new-window -a -t "$S:$parent" -c "$DIR" -P -F '#{window_id}')"
-else
-  wid="$(tmux new-window -t "$S:" -c "$DIR" -P -F '#{window_id}')"
-fi
+# Spawn an ephemeral kind=shell window grouped under the current instance (shared
+# helper; standalone grey when there's no managed parent). A window with no command
+# runs the user's interactive login shell. remain-on-exit off = close on exit.
 name="${NAME:-sh:$(basename "$DIR")}"
-cs_apply_window "$S:$wid" "$name" "$pcolor"
-tmux set-window-option -t "$S:$wid" remain-on-exit off 2>/dev/null || true  # ephemeral: close on exit, not watched
-cs_record_active "$name" "$pcolor" "$wid" "$DIR" "" "" "" shell "$parent"   # kind=shell, grouped under parent
+read -r wid parent < <(cs_spawn_grouped "$name" "$DIR" off)
 tmux select-window -t "$S:$wid"           # follow the client to it
 echo "opened shell '$name' in $DIR${parent:+ (grouped with its instance)}"

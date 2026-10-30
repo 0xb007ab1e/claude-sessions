@@ -351,6 +351,36 @@ cs_apply_window() {
   fi
 }
 
+# Registry colour of a managed window id (empty if not an active managed window).
+# No early `exit` in the awk: it drains cs_rows (jq) so closing the pipe early can't
+# SIGPIPE jq into a 141 under `set -o pipefail`. cs_window_color WID
+cs_window_color() {
+  cs_rows | awk -F'\t' -v p="$1" '$4==p && $7=="active" && !f{print $2; f=1}'
+}
+
+# Spawn an ephemeral kind=shell window grouped under the CURRENT instance (inherits
+# its colour, placed adjacent); standalone grey if there's no managed parent. Prints
+# "<wid> <parent>" (parent empty when standalone). Shared by claude-shell + claude-ask
+# so the grouping/colour/registration semantics live in one place.
+#   cs_spawn_grouped NAME CWD REMAIN_ON_EXIT [HELD]
+#     REMAIN_ON_EXIT  on|off   HELD  1 = create detached + held (-d), for respawn-pane
+cs_spawn_grouped() {
+  local name="$1" cwd="$2" remain="$3" held="${4:-0}"
+  local s parent pcolor wid; s="$(cs_session)"
+  parent="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
+  pcolor="$(cs_window_color "$parent")"
+  [ -n "$pcolor" ] || { pcolor=244; parent=""; }
+  local nw=(new-window -P -F '#{window_id}')
+  [ "$held" = 1 ] && nw+=(-d)
+  if [ -n "$parent" ]; then nw+=(-a -t "$s:$parent"); else nw+=(-t "$s:"); fi
+  [ -n "$cwd" ] && nw+=(-c "$cwd")
+  wid="$(tmux "${nw[@]}")"
+  cs_apply_window "$s:$wid" "$name" "$pcolor"
+  tmux set-window-option -t "$s:$wid" remain-on-exit "$remain" 2>/dev/null || true
+  cs_record_active "$name" "$pcolor" "$wid" "${cwd:-$PWD}" "" "" "" shell "$parent"
+  printf '%s %s\n' "$wid" "$parent"
+}
+
 # Where the watchdog tracks per-window restart timestamps (crash-loop budget).
 cs_watchdog_dir() { echo "$(cs_state_dir)/watchdog"; }
 

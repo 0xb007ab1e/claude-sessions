@@ -114,33 +114,16 @@ cmd_run() {
   [ -n "$MSG" ] && banner="printf '\033[1;36m== claude-ask ==\033[0m %s\n' $(printf '%q' "$MSG"); "
   local full="${banner}printf '\033[2m(answer below; the launching session reads the result when you are done)\033[0m\n'; exec ${q}"
 
-  local S parent pcolor wid name
+  local S wid name
   S="$(cs_session)"
   tmux -f "$HERE/tmux.conf" has-session -t "$S" 2>/dev/null || tmux new-session -d -s "$S"
 
-  # Group under the launching instance (inherit colour, place adjacent), exactly
-  # like claude-shell; fall back to a standalone grey window.
-  parent="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
-  # NOTE: no early `exit` in awk — `cs_rows` (jq) keeps writing, so exiting on the
-  # first match closes the pipe and SIGPIPEs jq, which `set -o pipefail` turns into a
-  # 141 that `set -e` would propagate. `!f` prints only the first match but still
-  # drains all input.
-  pcolor="$(cs_rows | awk -F'\t' -v p="$parent" '$4==p && $7=="active" && !f{print $2; f=1}')"
-  [ -n "$pcolor" ] || { pcolor=244; parent=""; }
-
-  # Create the window HELD (default shell, detached), set remain-on-exit FIRST,
-  # then run the command via respawn-pane — so a fast-exiting command can't
-  # destroy the window before the pane is told to persist its result. kind=shell
-  # means the watchdog leaves the dead pane alone (it isn't respawned).
-  if [ -n "$parent" ]; then
-    wid="$(tmux new-window -d -a -t "$S:$parent" -P -F '#{window_id}')"
-  else
-    wid="$(tmux new-window -d -t "$S:" -P -F '#{window_id}')"
-  fi
+  # Group under the launching instance via the shared helper (same colour/placement
+  # as claude-shell; standalone grey when there's no managed parent). Created HELD
+  # (-d) with remain-on-exit ON so a fast-exiting command can't destroy the window
+  # before respawn-pane persists its result; kind=shell keeps the watchdog off it.
   name="${NAME:-ask:$cmd_base}"
-  cs_apply_window "$S:$wid" "$name" "$pcolor"
-  tmux set-window-option -t "$S:$wid" remain-on-exit on 2>/dev/null || true
-  cs_record_active "$name" "$pcolor" "$wid" "$PWD" "" "" "" shell "$parent"
+  read -r wid _ < <(cs_spawn_grouped "$name" "$PWD" on 1)
   tmux respawn-pane -k -t "$S:$wid" "$full"
   [ "$SELECT" = 1 ] && tmux select-window -t "$S:$wid"
 
