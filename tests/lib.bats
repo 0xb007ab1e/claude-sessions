@@ -266,3 +266,21 @@ setup() {
   run cs_override_on "@w2"; [ "$status" -eq 0 ]
   run cs_override_on "@w3"; [ "$status" -ne 0 ]              # untouched window stays off
 }
+
+@test "cs_link_transcripts: one batched registry rewrite for N instances (#48)" {
+  cs_record_active a red @a "$BATS_TEST_TMPDIR/pa"
+  cs_record_active b red @b "$BATS_TEST_TMPDIR/pb"
+  cs_record_active c red @c "$BATS_TEST_TMPDIR/pc"
+  local w d
+  for w in a b c; do
+    d="$(cs_project_dir "$BATS_TEST_TMPDIR/p$w")"; mkdir -p "$d"; : > "$d/sess-$w.jsonl"
+  done
+  # Spy: count registry-update calls (one call == one whole-file rewrite). Pre-fix
+  # this was O(N) rewrites (one per instance); batched it must be exactly 1.
+  CRL=0
+  cs_registry_locked() { CRL=$((CRL + 1)); "$@"; }
+  cs_link_transcripts
+  [ "$CRL" -eq 1 ]
+  [ "$(jq -s '[.[] | select(.transcript != null)] | length' "$(cs_registry)")" -eq 3 ]
+  [ "$(jq -r 'select(.window_id=="@a") | .transcript' "$(cs_registry)")" = "sess-a" ]
+}
