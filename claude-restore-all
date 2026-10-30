@@ -25,7 +25,7 @@ restore_instances() {
   while IFS=$'\t' read -r name cwd kind _; do
     [ -n "$name" ] || continue
     [ "$kind" = "shell" ] && continue
-    "$HERE/claude-new" -m continue -c "${cwd:-$HOME}" -n "$name" >/dev/null 2>&1 || true
+    cs_reopen "$name" "${cwd:-$HOME}" >/dev/null 2>&1 || true
     n=$((n + 1))
   done < "$snap"
 }

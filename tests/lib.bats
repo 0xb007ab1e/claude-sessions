@@ -284,3 +284,19 @@ setup() {
   [ "$(jq -s '[.[] | select(.transcript != null)] | length' "$(cs_registry)")" -eq 3 ]
   [ "$(jq -r 'select(.window_id=="@a") | .transcript' "$(cs_registry)")" = "sess-a" ]
 }
+
+@test "cs_reopen: -i for known transcript, -m continue otherwise, carries model/effort (#49)" {
+  local stub="$BATS_TEST_TMPDIR/cn" log="$BATS_TEST_TMPDIR/cn.log"
+  cat > "$stub" <<'E'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CN_LOG"
+E
+  chmod +x "$stub"
+  export CS_CLAUDE_NEW="$stub" CN_LOG="$log"; : > "$log"
+  cs_reopen alpha /tmp/a sess-1 opus high
+  cs_reopen bravo /tmp/b "" "" ""
+  run cat "$log"
+  [[ "${lines[0]}" = *"-i sess-1 -c /tmp/a -n alpha -M opus -E high"* ]]
+  [[ "${lines[1]}" = *"-m continue -c /tmp/b -n bravo"* ]]
+  [[ "${lines[1]}" != *"-M"* ]]
+}

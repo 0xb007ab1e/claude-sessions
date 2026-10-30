@@ -48,8 +48,5 @@ if [ "$status" = active ]; then
   tmux select-window -t "$S:$wid" 2>/dev/null || tmux select-window -t "$S:$name" 2>/dev/null || true
   echo "switched to '$name'"
 else
-  dir="${dir:-$HOME}"
-  me=(); [ -n "$model" ] && me+=(-M "$model"); [ -n "$effort" ] && me+=(-E "$effort")
-  if [ -n "$transcript" ]; then exec "$HERE/claude-new" -i "$transcript" -c "$dir" -n "$name" "${me[@]}"
-  else                          exec "$HERE/claude-new" -m continue -c "$dir" -n "$name" "${me[@]}"; fi
+  cs_reopen "$name" "${dir:-$HOME}" "$transcript" "$model" "$effort"
 fi
