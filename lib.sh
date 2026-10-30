@@ -464,6 +464,25 @@ cs_override_clear() { rm -f "$(_cs_override_file "$1")" 2>/dev/null || true; }
 # Shell-quoted launch prefix applying the override for WID (empty when off).
 cs_override_env_prefix() { cs_override_on "$1" && printf 'env CLAUDE_USAGE_OVERRIDE=1 ' || true; }
 
+# --- shared reopen semantics -------------------------------------------------
+# Reopen instance NAME in DIR, resuming its exact conversation when TRANSCRIPT is
+# known (claude-new -i), else the directory's most recent one (-m continue),
+# carrying model/effort. The single source of truth for "reopen a closed/snapshot
+# instance", shared by claude-pick, claude-restore, and claude-restore-all so the
+# semantics can't drift. Runs claude-new (does not exec), so a caller can loop
+# over it; a caller that wants to hand off its shell just makes it the last line.
+#   cs_reopen NAME DIR [TRANSCRIPT] [MODEL] [EFFORT]
+cs_reopen() {
+  local name="$1" dir="${2:-$HOME}" transcript="${3:-}" model="${4:-}" effort="${5:-}"
+  local cn; cn="${CS_CLAUDE_NEW:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/claude-new}"
+  local me_args=(); [ -n "$model" ] && me_args+=(-M "$model"); [ -n "$effort" ] && me_args+=(-E "$effort")
+  if [ -n "$transcript" ]; then
+    "$cn" -i "$transcript" -c "$dir" -n "$name" "${me_args[@]}"
+  else
+    "$cn" -m continue -c "$dir" -n "$name" "${me_args[@]}"
+  fi
+}
+
 # Mark active records closed when their window no longer exists, then link ids.
 cs_reconcile() {
   cs_open

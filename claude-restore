@@ -45,11 +45,9 @@ dir="$(cs_pick_dir "$dir")"
 dir="${dir/#\~/$HOME}"
 [ -d "$dir" ] || { echo "no such directory: $dir"; exit 1; }
 
-me=(); [ -n "$model" ] && me+=(-M "$model"); [ -n "$effort" ] && me+=(-E "$effort")
 if [ -n "$transcript" ]; then
   echo "reopening '$choice' in $dir (exact conversation $transcript) ..."
-  exec "$HERE/claude-new" -i "$transcript" -c "$dir" -n "$choice" "${me[@]}"
 else
   echo "reopening '$choice' in $dir (most recent conversation there) ..."
-  exec "$HERE/claude-new" -m continue -c "$dir" -n "$choice" "${me[@]}"
 fi
+cs_reopen "$choice" "$dir" "$transcript" "$model" "$effort"
