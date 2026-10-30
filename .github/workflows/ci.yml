@@ -33,7 +33,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck bats tmux fzf jq
 
       - name: shellcheck (zero warnings)
-        run: shellcheck -S warning cj claude-* install.sh lib.sh
+        run: shellcheck -S warning cj cj-cswap claude-* install.sh lib.sh tests/reload.sh tests/cjcswap.sh
 
       - name: bats unit tests
         run: bats tests/lib.bats
@@ -43,6 +43,12 @@ jobs:
 
       - name: watchdog suite
         run: bash tests/watchdog.sh
+
+      - name: reload suite
+        run: bash tests/reload.sh
+
+      - name: cj-cswap suite
+        run: bash tests/cjcswap.sh
 
       - name: shfmt format drift (advisory)
         continue-on-error: true

@@ -5,6 +5,17 @@
 # Fluent design: the action menu is GROUPED with drill-down submenus (▸) using
 # tmux { } command blocks. The flat direct keys below are kept for power users.
 
+# ── Multi-account (cswap) ────────────────────────────────────────────────────
+# Launch every instance under its cswap per-account profile (isolated
+# CLAUDE_CONFIG_DIR + credentials) so an OAuth refresh never clobbers the shared
+# login, and account rotation when one hits its rate limit "just works". cj and
+# claude-new launch "${CJ_CLAUDE:-claude}"; cj-cswap fails open to plain claude
+# (so this is safe even if cswap is not installed — the shim degrades gracefully).
+# Gated only on the shim existing; not on cswap, since tmux's server-side shell
+# PATH may not include ~/.local/bin (the check would spuriously fail).
+if-shell '[ -x "@BIN@/cj-cswap" ]' \
+  'set-environment -g CJ_CLAUDE "@BIN@/cj-cswap"'
+
 # ── Grouped action menu (prefix + C, F9, or tap the session name) ────────────
 # Defined identically for the three triggers. Each top item drills into a group.
 bind C display-menu -T "#[align=centre,bold] claude " \
@@ -16,6 +27,7 @@ bind C display-menu -T "#[align=centre,bold] claude " \
         "Rename"            e { display-popup -E -w 60% -h 28% "@BIN@/claude-rename" } \
         "Change dir"        c { display-popup -E -w 80% -h 70% "@BIN@/claude-cd" } \
         "Usage / cost"      u { display-popup -E -w 78% -h 60% "@BIN@/claude-popup cost" } \
+        "Reload (hot)"      g { run-shell "@BIN@/claude-reload" } \
         "Stop"              x { confirm-before -p "stop instance #W? (y/n)" kill-window } } \
   "▸ Conversations"  v { display-menu -T "#[align=centre,bold] conversations " \
         "Resume"            r { run-shell "@BIN@/claude-new -m resume" } \
@@ -36,6 +48,7 @@ bind -n F9 display-menu -T "#[align=centre,bold] claude " \
         "Rename"            e { display-popup -E -w 60% -h 28% "@BIN@/claude-rename" } \
         "Change dir"        c { display-popup -E -w 80% -h 70% "@BIN@/claude-cd" } \
         "Usage / cost"      u { display-popup -E -w 78% -h 60% "@BIN@/claude-popup cost" } \
+        "Reload (hot)"      g { run-shell "@BIN@/claude-reload" } \
         "Stop"              x { confirm-before -p "stop instance #W? (y/n)" kill-window } } \
   "▸ Conversations"  v { display-menu -T "#[align=centre,bold] conversations " \
         "Resume"            r { run-shell "@BIN@/claude-new -m resume" } \
@@ -56,6 +69,7 @@ bind -n MouseDown1StatusLeft display-menu -T "#[align=centre,bold] claude " \
         "Rename"            e { display-popup -E -w 60% -h 28% "@BIN@/claude-rename" } \
         "Change dir"        c { display-popup -E -w 80% -h 70% "@BIN@/claude-cd" } \
         "Usage / cost"      u { display-popup -E -w 78% -h 60% "@BIN@/claude-popup cost" } \
+        "Reload (hot)"      g { run-shell "@BIN@/claude-reload" } \
         "Stop"              x { confirm-before -p "stop instance #W? (y/n)" kill-window } } \
   "▸ Conversations"  v { display-menu -T "#[align=centre,bold] conversations " \
         "Resume"            r { run-shell "@BIN@/claude-new -m resume" } \
@@ -74,6 +88,7 @@ bind N run-shell "@BIN@/claude-new"
 bind D display-popup -E -w 80% -h 70% "@BIN@/claude-new -D"
 bind M display-popup -E -w 60% -h 50% "@BIN@/claude-model"
 bind G display-popup -E -w 80% -h 70% "@BIN@/claude-cd"
+bind H run-shell "@BIN@/claude-reload"
 bind B run-shell "@BIN@/claude-shell"
 bind E display-popup -E -w 60% -h 28% "@BIN@/claude-rename"
 bind R run-shell "@BIN@/claude-new -m resume"
@@ -87,8 +102,9 @@ bind -n M-Right next-window
 bind -n F7      previous-window
 bind -n F8      next-window
 
-# Status-bar summary: ⚠N need approval / ⚙N working (from claude-hook status).
-set -g status-right '#(@BIN@/claude-status bar) #[fg=cyan]%H:%M #[fg=yellow]%d-%b'
+# Status-bar summary: ⟳N P% active cswap account (green/yellow/red by usage) +
+# ⚠N need approval / ⚙N working (from claude-hook status).
+set -g status-right '#(@BIN@/claude-status acct)#(@BIN@/claude-status bar) #[fg=cyan]%H:%M #[fg=yellow]%d-%b'
 
 # Keep the active/closed registry fresh when a window closes.
 set-hook -g window-unlinked 'run-shell "@BIN@/claude-ls --reconcile-only"'

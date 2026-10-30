@@ -58,3 +58,4 @@ complete -F _claude_ask_complete claude-ask
 
 # Simple flag/no-arg completers for the rest.
 complete -W "--if-enabled" claude-restore-all 2>/dev/null || true
+complete -W "-n --name -h --help" claude-reload 2>/dev/null || true

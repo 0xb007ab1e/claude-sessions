@@ -40,10 +40,19 @@ mkdir -p "$BIN" "$APPS" "$UNITDIR" "$CSCONF" "$STATE"
 # 1. CLI shortcuts on PATH ----------------------------------------------------
 for f in cj claude-session claude-ls claude-new claude-restore claude-popup \
          claude-notify claude-snapshot claude-restore-all claude-rename claude-shell \
-         claude-pick claude-cd claude-hook claude-status claude-cost claude-model claude-watchdog claude-ask; do
+         claude-pick claude-cd claude-hook claude-status claude-cost claude-model claude-watchdog claude-ask \
+         claude-reload cj-cswap; do
   ln -sf "$REPO/$f" "$BIN/$f"
   echo "linked   $BIN/$f"
 done
+
+# cswap (multi-account switcher): bindings.conf.in points CJ_CLAUDE at cj-cswap
+# for the tmux fleet when cswap is on PATH, so instances launch under isolated
+# per-account profiles and rotate near rate limits. For terminal-launched `cj`,
+# also add to your shell profile:  export CJ_CLAUDE="$BIN/cj-cswap"
+if command -v cswap >/dev/null 2>&1; then
+  echo "note     cswap found — fleet launches via cj-cswap; add 'export CJ_CLAUDE=\"$BIN/cj-cswap\"' to your shell profile for terminal cj"
+fi
 
 # 1c. Claude Code hooks (per-instance status + precise notifications) ---------
 # Merge our hook entries into ~/.claude/settings.json (backup first; idempotent

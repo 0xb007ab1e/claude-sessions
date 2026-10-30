@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# cj-cswap — CJ_CLAUDE shim: launch each claude-sessions instance under an
+# isolated cswap per-account profile (its own CLAUDE_CONFIG_DIR + .credentials.json)
+# so a session's OAuth token refresh never clobbers the shared
+# ~/.claude/.credentials.json (the read/rotation mismatch root cause).
+#
+# Account selection, in order:
+#   1. $CJ_CSWAP_ACCT (num|email)  — pin every instance to one account's profile
+#   2. the current directory's `cswap map` mapping
+#   3. cswap's default login (NO isolation — unmapped dirs fall back to this)
+# All claude args are forwarded after `--`. If cswap is unavailable, exec plain
+# claude unchanged (fail-open: never block launching an instance).
+#
+# cj and claude-new launch "${CJ_CLAUDE:-claude}", so pointing CJ_CLAUDE at this
+# script routes the whole fleet through cswap. install.sh sets CJ_CLAUDE for the
+# tmux fleet (bindings.conf.in) when cswap is present; export it in your shell
+# profile too for terminal-launched `cj`.
+#
+# Enable fleet-wide:   export CJ_CLAUDE="$HOME/.local/bin/cj-cswap"
+# Revert:              unset CJ_CLAUDE   (instances launch plain claude again)
+set -euo pipefail
+
+if command -v cswap >/dev/null 2>&1; then
+  if [ -n "${CJ_CSWAP_ACCT:-}" ]; then
+    exec cswap run "$CJ_CSWAP_ACCT" -- "$@"
+  fi
+  exec cswap run -- "$@"
+fi
+
+exec claude "$@"

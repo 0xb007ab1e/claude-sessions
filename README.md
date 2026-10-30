@@ -83,6 +83,7 @@ instances flip to *closed* automatically when their window goes away.
 | `prefix + G` | change the current instance's directory (relaunch + resume) |
 | `prefix + B` | open an interactive shell in the current dir ("Shell here") |
 | `prefix + R` | resume a past conversation |
+| `prefix + H` | hot-reload the current instance in place ("Reload (hot)") |
 | `prefix + O` | reopen a closed instance |
 | `prefix + X` | stop the current instance (confirm) |
 | `prefix + ?` | cheat sheet |
@@ -152,6 +153,55 @@ claude-new -M sonnet          # new instance on sonnet (default effort)
 use **New (model)…** (`prefix + M`) to pick both from a menu. Set
 `default_model` / `default_effort` in config to apply them to every new instance.
 
+### Multi-account (cswap integration)
+
+When [`cswap`](https://pypi.org/project/claude-swap/) (the multi-account switcher)
+is on `PATH`, the fleet launches every instance through **`cj-cswap`** — a
+`CJ_CLAUDE` shim that runs each instance under an isolated cswap *per-account
+profile* (its own `CLAUDE_CONFIG_DIR` + `.credentials.json`). This keeps one
+session's OAuth token refresh from clobbering the shared login, and lets cswap
+rotate to another account when one nears its rate limit. The shim **fails open**:
+no cswap, and instances launch plain `claude` unchanged.
+
+- **Enabled for the tmux fleet automatically** — `install.sh` links `cj-cswap`
+  and `bindings.conf.in` sets `CJ_CLAUDE` (guarded on cswap being present), so
+  anything started from the menu / `cj` / `claude-new` inside tmux is covered.
+- **For terminal-launched `cj`** (outside a tmux instance), export it yourself:
+  ```bash
+  export CJ_CLAUDE="$HOME/.local/bin/cj-cswap"   # add to ~/.bashrc / ~/.profile
+  ```
+- **Pin one account** for every instance: `export CJ_CSWAP_ACCT=<num|email>`.
+  Otherwise the current directory's `cswap map` mapping (then cswap's default)
+  decides. Map a tree once with `cswap map <num|email> <path>`.
+- **Status bar** shows the active account: `⟳<num> <7d-pct>%`, green/yellow/red by
+  usage (`claude-status acct`). Switch/rotate with `cswap switch` (or `cswap tui`).
+
+cswap owns accounts, usage, and rotation; claude-sessions only launches through it
+and surfaces the active account — the two stay decoupled.
+
+### Hot-reload in place (`claude-reload`)
+
+Reload a live instance **in its own window, keeping the conversation** — kill the
+running `claude` and relaunch it with `--resume`, same dir/model/effort, so it
+picks up new environment (a swapped cswap account, a changed `CJ_CLAUDE`, updated
+config, an upgraded `claude`) **without a new window or losing history**. The
+transcript Claude Code persists is the snapshot; `--resume` continues it. It
+launches through `${CJ_CLAUDE:-claude}`, so the reloaded instance adopts the
+current account/profile just like a fresh one.
+
+```bash
+claude-reload            # reload the window you're in (deferred — fires after this returns)
+claude-reload -n NAME    # reload a specific instance by name
+```
+
+On a phone / in tmux: **Reload (hot)** in the Instances menu, or `prefix + H`.
+Reloading the current window is **deferred** — the respawn fires ~0.3s after the
+command returns — so the trigger (the menu, or the session reloading itself) exits
+cleanly before its pane is replaced. Ephemeral shells are not reloadable. This is
+the deliberate twin of the watchdog's crash-time respawn: same resume path, your
+call instead of a crash. Typical use: after `cswap switch`, run `claude-reload` in
+each live session to continue it on the new account.
+
 ### Tab-completion & tests
 
 The installer sources `completions/claude-sessions.bash` from `~/.bashrc`
@@ -162,7 +212,9 @@ The installer sources `completions/claude-sessions.bash` from `~/.bashrc`
 a pane **and** runs `claude-new` through a real `display-popup`, on a private
 socket; it skips cleanly without `tmux`/`fzf`. The watchdog's crash/respawn/
 give-up logic has its own test against a fake `tmux` in `tests/watchdog.sh`
-(`bash tests/watchdog.sh`).
+(`bash tests/watchdog.sh`); `claude-reload`'s target resolution + respawn/resume
+(incl. deferred self-reload) is tested the same way in `tests/reload.sh`
+(`bash tests/reload.sh`).
 
 ### Attention notifications
 
@@ -244,7 +296,7 @@ if absent). If `loginctl enable-linger` needs privileges, run once:
 systemctl --user disable --now claude-tmux.service
 rm -f ~/.config/systemd/user/claude-tmux.service ~/.config/claude-sessions/bindings.conf
 rm -f ~/.local/share/applications/claude-join.desktop
-rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the real `claude`)
+rm -f ~/.local/bin/cj ~/.local/bin/cj-cswap ~/.local/bin/claude-*   # cj, the cswap shim + all claude-* tools (not the real `claude`)
 # then remove the `source-file …/tmux.conf` line from ~/.tmux.conf
 # and the claude-hook entries from ~/.claude/settings.json (restore settings.json.cs-bak)
 ```
@@ -258,6 +310,8 @@ rm -f ~/.local/bin/cj ~/.local/bin/claude-*   # cj + all claude-* tools (not the
 | `claude-cd` / `claude-rename` / `claude-shell` | Move dir (resume) / rename / shell |
 | `claude-ask` | Run an interactive cmd (ssh-add/sudo/OTP) in a window so a human answers a prompt Claude can't type; `run`/`send`/`wait`/`close` |
 | `claude-model` | Pick model/effort, then open a new instance |
+| `claude-reload` | Hot-reload a live instance in place (resume same conversation; pick up new env/account). `-n NAME`; deferred for the current window |
+| `cj-cswap` | `CJ_CLAUDE` shim: launch instances under isolated cswap per-account profiles (multi-account); fails open to plain `claude` |
 | `claude-popup` | Run a view inside a tmux popup |
 | `claude-session` | General launcher — one Claude per window in a named session |
 | `lib.sh` | Shared helpers: config, naming, colors, registry |

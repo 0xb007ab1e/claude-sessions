@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# claude-reload [-n NAME] — hot-reload a live instance IN PLACE.
+#
+# Kills the running claude in its tmux window and relaunches it RESUMING the same
+# conversation (claude --resume <session>, same cwd/model/effort), so it picks up
+# new environment — a swapped cswap account, a changed CJ_CLAUDE, updated config,
+# an upgraded claude — without opening a new window or losing history. The
+# conversation transcript Claude Code persists (*.jsonl) is the snapshot; --resume
+# continues it. Launches through "${CJ_CLAUDE:-claude}", so the reloaded instance
+# adopts the current account/profile just like a fresh one.
+#
+# Target: the window you run it from (default), or -n NAME. Reloading the CURRENT
+# window is deferred — the respawn fires ~0.3s after this command returns — so the
+# trigger (the menu, or Claude reloading itself) exits cleanly before its pane is
+# replaced. Ephemeral shells are not reloadable.
+set -euo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
+name=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -n|--name) name="${2:-}"; shift 2 ;;
+    -h|--help) echo "usage: claude-reload [-n NAME]   # hot-reload a live instance, resuming its conversation" >&2; exit 0 ;;
+    *) echo "claude-reload: unknown arg: $1" >&2; exit 2 ;;
+  esac
+done
+
+S="$(cs_session)"
+tmux has-session -t "$S" 2>/dev/null || { echo "claude-reload: no '$S' session" >&2; exit 1; }
+
+# Resolve the target window id + its registry row.
+if [ -n "$name" ]; then
+  row="$(cs_rows | awk -F'\t' -v n="$name" '$1==n && $7=="active" && !f{print; f=1}')"
+  [ -n "$row" ] || { echo "claude-reload: no active instance named '$name'" >&2; exit 1; }
+  wid="$(cs_field 4 "$row")"
+  self=0
+else
+  # the window this command is attached to (the pane that invoked it)
+  wid="$(tmux display-message -p ${TMUX_PANE:+-t "$TMUX_PANE"} '#{window_id}' 2>/dev/null || true)"
+  [ -n "$wid" ] || { echo "claude-reload: cannot determine current window (run inside the session, or pass -n NAME)" >&2; exit 1; }
+  row="$(cs_rows | awk -F'\t' -v w="$wid" '$4==w && $7=="active" && !f{print; f=1}')"
+  [ -n "$row" ] || { echo "claude-reload: current window is not a managed instance" >&2; exit 1; }
+  self=1
+fi
+
+[ "$(cs_field 12 "$row")" = shell ] && { echo "claude-reload: '$(cs_field 1 "$row")' is an ephemeral shell, not reloadable" >&2; exit 1; }
+
+cwd="$(cs_field 5 "$row")"; started="$(cs_field 6 "$row")"
+transcript="$(cs_field 9 "$row")"; model="$(cs_field 10 "$row")"; effort="$(cs_field 11 "$row")"
+
+# Resolve the conversation to resume. Prefer the linked transcript; if it was
+# never linked, find it from cwd+start time (and persist it); else --continue.
+if [ -z "$transcript" ]; then
+  transcript="$(cs_find_transcript "$cwd" "$started")" || true
+  if [ -n "$transcript" ]; then cs_link_transcripts || true; fi
+fi
+
+REAL_CLAUDE="${CJ_CLAUDE:-$(command -v claude 2>/dev/null || true)}"
+REAL_CLAUDE="${REAL_CLAUDE:-$HOME/.local/bin/claude}"
+# Build the launch command with every interpolant shell-quoted. tmux respawn-pane
+# re-parses this string through /bin/sh -c, so an unquoted $transcript (a disk-
+# sourced *.jsonl basename) or $model/$effort would otherwise be shell-evaluated.
+cmd="$(printf %q "$REAL_CLAUDE")"
+if [ -n "$transcript" ]; then cmd+=" --resume $(printf %q "$transcript")"
+else                          cmd+=" --continue"; fi
+[ -n "$model" ]  && cmd+=" --model $(printf %q "$model")"
+[ -n "$effort" ] && cmd+=" --effort $(printf %q "$effort")"
+
+echo "claude-reload: $(cs_field 1 "$row") [$wid] ${transcript:+resume $transcript}${transcript:+ }${transcript:+}in $cwd" >&2
+
+if [ "$self" = 1 ]; then
+  # Defer so THIS command (and the Claude that may have invoked it) returns first,
+  # then the pane is killed and respawned on the resumed conversation.
+  respawn="tmux respawn-pane -k -t $(printf %q "$S:$wid") -c $(printf %q "$cwd") $(printf %q "exec $cmd")"
+  tmux run-shell -b "sleep 0.3; $respawn" 2>/dev/null || true
+  echo "claude-reload: reloading this window in place…" >&2
+else
+  tmux respawn-pane -k -t "$S:$wid" -c "$cwd" "exec $cmd" 2>/dev/null \
+    || { echo "claude-reload: respawn failed for $wid" >&2; exit 1; }
+fi
