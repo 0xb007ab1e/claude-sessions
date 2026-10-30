@@ -56,7 +56,8 @@ CLI equivalents: `claude-ls`, `claude-pick` (selectable list), `claude-new
 resuming), `claude-restore`, `claude-restore-all`, `claude-rename`,
 `claude-shell`, `claude-ask` (run an interactive command — `ssh-add`, `sudo`,
 an OTP — in a window so you answer a prompt Claude can't type),
-`claude-session` (multi-window layouts).
+`claude-session` (multi-window layouts), `claude-reload` (hot-reload in place),
+`claude-override on|off|status` (toggle the usage-guard bypass for an instance).
 
 ## Screenshots — menu actions & status bar
 
@@ -165,7 +166,7 @@ tapping a window name in the status bar.
 | `name_scheme` | `nato` / `project` / `random` — how instances are auto-named |
 | `auto_name` | `true` to auto-name every `cj` (or use `cj -a`) |
 | `notify` | `desktop` / `ntfy` / `pushover` / `none` — alert when an instance rings the bell (enable the bell in Claude); `ntfy`/`pushover` push to your phone |
-| `restore_on_boot` | `true` to reopen the previous session's instances at boot |
+| `restore_on_boot` | `true` to reopen the previous session's instances at boot (a snapshot timer keeps the restore set fresh across ungraceful stops) |
 | `search_dir` | root the directory picker searches (e.g. `~/src`) |
 | `watchdog` | `true` to auto-restart **crashed** instances in place — then re-run `./install.sh`. Tune with `watchdog_restart_on` / `watchdog_max_retries` / `watchdog_window` / `watchdog_backoff` |
 
@@ -190,7 +191,19 @@ tapping a window name in the status bar.
   kills and relaunches a live instance with `--resume`, keeping the conversation,
   so it adopts a new account / config without a new window. Typical use: after
   `cswap switch`, reload each live session onto the new account.
-- Manage the boot service: `systemctl --user {status,restart} claude-tmux.service`.
+- **Usage-guard override** — if a usage guard (a hook reading
+  `CLAUDE_USAGE_OVERRIDE`) is blocking an instance at its limit, `claude-override
+  on` sets the bypass for **that instance** and hot-reloads it (resuming the
+  conversation); `claude-override off` restores gating, `status` shows it. Launch
+  one already bypassed with `cj --override` / `claude-new --override` (`-O`). The
+  override is per-window and durable — it survives a reload **and** a crash-respawn.
+- **Boot-restore stays fresh** — the previous session's instances are reopened at
+  boot (with `restore_on_boot = true`), resuming each one's **exact conversation +
+  model/effort**. A snapshot timer re-records the live set every ~5 min, so even an
+  **ungraceful** crash / power-loss (which skips the clean-stop snapshot) restores
+  the recent set, not a stale one.
+- Manage the boot service: `systemctl --user {status,restart} claude-tmux.service`
+  (snapshot timer: `systemctl --user status claude-snapshot.timer`).
 
 ## Develop / verify
 
