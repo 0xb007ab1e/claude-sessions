@@ -354,12 +354,27 @@ cs_apply_window() {
 # Where the watchdog tracks per-window restart timestamps (crash-loop budget).
 cs_watchdog_dir() { echo "$(cs_state_dir)/watchdog"; }
 
+# Run a registry read-modify-write under the shared flock, so concurrent writers
+# don't lose updates. The atomic `mv` already prevents a torn read; the lock makes
+# the whole read->jq->mv atomic ACROSS processes (otherwise two writers read the
+# same base state, each mv, and the second silently clobbers the first). cs_open
+# runs FIRST — it locks only to migrate and releases before returning — so the
+# lock never nests (no self-deadlock). Readers (cs_rows/cs_field) stay lock-free:
+# the atomic mv keeps them at-most-one-version stale, never torn.
+#   cs_registry_locked FUNC [args...]   (FUNC does the read->jq->mv)
+cs_registry_locked() {
+  cs_open
+  mkdir -p "$(cs_state_dir)"
+  local lock; lock="$(cs_state_dir)/.registry.lock"
+  ( flock 9 2>/dev/null || true; "$@" ) 9>"$lock"
+}
+
 # Append an active record, superseding any existing active record for the same
 # window id (a reused window replaces its previous active row).
-#   cs_record_active NAME COLOR WID CWD [TRANSCRIPT] [MODEL] [EFFORT]
-cs_record_active() {
-  cs_open
-  local reg tmp; reg="$(cs_registry)"; mkdir -p "$(cs_state_dir)"; tmp="$(mktemp)"
+#   cs_record_active NAME COLOR WID CWD [TRANSCRIPT] [MODEL] [EFFORT] [KIND] [PARENT]
+cs_record_active() { cs_registry_locked _cs_record_active_w "$@"; }
+_cs_record_active_w() {
+  local reg tmp; reg="$(cs_registry)"; tmp="$(mktemp)"
   { [ -s "$reg" ] && jq -c --arg w "$3" 'select(.window_id!=$w or .status!="active")' "$reg" 2>/dev/null
     jq -cn --argjson v "$CS_SCHEMA_VERSION" \
       --arg name "$1" --arg color "$2" --arg session "$(cs_session)" --arg wid "$3" \
@@ -397,18 +412,23 @@ cs_find_transcript() {
   [ -n "$f" ] && basename "$f" .jsonl || true
 }
 
-# Fill the transcript id for active records that don't have one yet.
+# Fill the transcript id for active records that don't have one yet. The active
+# set is snapshotted once; each per-instance update is a locked RMW (lock released
+# across the slow cs_find_transcript `find`, so writers aren't blocked on I/O).
 cs_link_transcripts() {
-  local reg tmp wid cwd started newt; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
+  local reg wid cwd started newt; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
   while IFS=$'\t' read -r wid cwd started; do
     [ -n "$wid" ] || continue
     newt="$(cs_find_transcript "$cwd" "$started")"; [ -n "$newt" ] || continue
-    tmp="$(mktemp)"
-    jq -c --arg w "$wid" --arg t "$newt" \
-      'if .window_id==$w and .status=="active" and (.transcript==null or .transcript=="")
-       then .transcript=$t else . end' "$reg" > "$tmp" && mv "$tmp" "$reg"
+    cs_registry_locked _cs_link_one "$wid" "$newt"
   done < <(jq -r 'select(.status=="active" and (.transcript==null or .transcript==""))
                   | [.window_id,.cwd,(.started|tostring)] | @tsv' "$reg" 2>/dev/null)
+}
+_cs_link_one() {
+  local reg tmp; reg="$(cs_registry)"; [ -s "$reg" ] || return 0; tmp="$(mktemp)"
+  jq -c --arg w "$1" --arg t "$2" \
+    'if .window_id==$w and .status=="active" and (.transcript==null or .transcript=="")
+     then .transcript=$t else . end' "$reg" > "$tmp" && mv "$tmp" "$reg"
 }
 
 # --- per-instance live status (written by claude-hook, read by claude-ls/bar) -
@@ -421,7 +441,7 @@ cs_clear_status() { rm -f "$(_cs_status_file "$1")" 2>/dev/null || true; }
 # Mark active records closed when their window no longer exists, then link ids.
 cs_reconcile() {
   cs_open
-  local reg tmp live now livew sd f wid
+  local reg live now livew sd f wid
   livew="$(tmux list-windows -t "$(cs_session)" -F '#{window_id}' 2>/dev/null || true)"
   # Sweep stale per-window status files (windows that no longer exist).
   sd="$(cs_status_dir)"
@@ -435,28 +455,32 @@ cs_reconcile() {
   fi
   reg="$(cs_registry)"; [ -s "$reg" ] || return 0
   [ -n "$livew" ] && live="$(printf '%s\n' "$livew" | jq -R . | jq -cs . 2>/dev/null)" || live='[]'
-  now="$(date +%s)"; tmp="$(mktemp)"
-  jq -c --argjson live "$live" --argjson now "$now" \
+  now="$(date +%s)"
+  cs_registry_locked _cs_reconcile_w "$live" "$now"
+  cs_link_transcripts
+}
+_cs_reconcile_w() {
+  local reg tmp; reg="$(cs_registry)"; [ -s "$reg" ] || return 0; tmp="$(mktemp)"
+  jq -c --argjson live "$1" --argjson now "$2" \
     'if .status=="active" and (([.window_id] - $live) | length > 0)
      then .status="closed" | .ended=$now else . end' "$reg" > "$tmp" && mv "$tmp" "$reg"
-  cs_link_transcripts
 }
 
 # Rename a window and update its active registry record. cs_set_name WID NEWNAME
 cs_set_name() {
-  cs_open
   tmux rename-window -t "$(cs_session):$1" "$2" 2>/dev/null || true
-  local reg tmp; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
-  tmp="$(mktemp)"
+  cs_registry_locked _cs_set_name_w "$1" "$2"
+}
+_cs_set_name_w() {
+  local reg tmp; reg="$(cs_registry)"; [ -s "$reg" ] || return 0; tmp="$(mktemp)"
   jq -c --arg w "$1" --arg n "$2" \
     'if .window_id==$w and .status=="active" then .name=$n else . end' "$reg" > "$tmp" && mv "$tmp" "$reg"
 }
 
 # Keep all active records + the most recently-closed N (by end time). cs_prune [N]
-cs_prune() {
-  cs_open
-  local keep="${1:-50}" reg tmp; reg="$(cs_registry)"; [ -s "$reg" ] || return 0
-  tmp="$(mktemp)"
+cs_prune() { cs_registry_locked _cs_prune_w "${1:-50}"; }
+_cs_prune_w() {
+  local keep="$1" reg tmp; reg="$(cs_registry)"; [ -s "$reg" ] || return 0; tmp="$(mktemp)"
   { jq -c 'select(.status=="active")' "$reg"
     jq -c 'select(.status=="closed")' "$reg" \
       | jq -s -c --argjson k "$keep" 'sort_by(.ended // 0) | reverse | .[:$k] | .[]'
