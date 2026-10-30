@@ -300,3 +300,16 @@ E
   [[ "${lines[1]}" = *"-m continue -c /tmp/b -n bravo"* ]]
   [[ "${lines[1]}" != *"-M"* ]]
 }
+
+@test "claude-snapshot records transcript/model/effort columns for boot-restore (#46)" {
+  cs_record_active alpha red @a /tmp/a tx-1 opus high
+  run bash "$BATS_TEST_DIRNAME/../claude-snapshot"
+  [ "$status" -eq 0 ]
+  local snap row; snap="$(cs_state_dir)/last-session.tsv"
+  row="$(awk -F'\t' '$1=="alpha"{print; exit}' "$snap")"
+  # cols: name cwd kind parent transcript model effort
+  [ "$(printf '%s' "$row" | cut -f3)" = instance ]
+  [ "$(printf '%s' "$row" | cut -f5)" = tx-1 ]
+  [ "$(printf '%s' "$row" | cut -f6)" = opus ]
+  [ "$(printf '%s' "$row" | cut -f7)" = high ]
+}

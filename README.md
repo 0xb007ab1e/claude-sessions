@@ -265,10 +265,16 @@ Each instance's status (**⚙ working** / **idle** / **⚠ needs approval**) sho
 ### Restore the whole session after a reboot
 
 The service snapshots active instances on stop (`claude-snapshot`) and, with
-`restore_on_boot = true` in config, reopens them at boot (`claude-restore-all`).
-Run it manually anytime (`claude-restore-all`) or from the menu ("Restore last
-session"). Snapshots are taken on graceful stop; a hard power-loss reboot reuses
-the previous snapshot.
+`restore_on_boot = true` in config, reopens them at boot (`claude-restore-all`) —
+resuming each one's **exact conversation** with its saved model/effort (the
+snapshot records name, cwd, kind, parent, transcript, model, effort). Run it
+manually anytime (`claude-restore-all`) or from the menu ("Restore last session").
+
+A **`claude-snapshot.timer`** re-snapshots every 5 minutes, so an *ungraceful* stop
+(power loss, OOM-kill, crash — which skips the service's `ExecStop` snapshot) still
+restores the recent live set rather than a stale one. The timer is enabled by
+`install.sh` alongside the service (skipped with `--no-boot`); the snapshot is cheap
+and idempotent.
 
 ### Auto-restart crashed instances (watchdog, opt-in)
 
@@ -314,8 +320,8 @@ if absent). If `loginctl enable-linger` needs privileges, run once:
 **Uninstall:**
 
 ```bash
-systemctl --user disable --now claude-tmux.service
-rm -f ~/.config/systemd/user/claude-tmux.service ~/.config/claude-sessions/bindings.conf
+systemctl --user disable --now claude-tmux.service claude-snapshot.timer
+rm -f ~/.config/systemd/user/claude-tmux.service ~/.config/systemd/user/claude-snapshot.{service,timer} ~/.config/claude-sessions/bindings.conf
 rm -f ~/.local/share/applications/claude-join.desktop
 rm -f ~/.local/bin/cj ~/.local/bin/cj-cswap ~/.local/bin/claude-*   # cj, the cswap shim + all claude-* tools (not the real `claude`)
 # then remove the `source-file …/tmux.conf` line from ~/.tmux.conf

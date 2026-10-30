@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodically snapshot active Claude instances (fresh boot-restore across ungraceful stops)
+Documentation=file://README.md
+
+[Timer]
+# First snapshot shortly after boot, then every 5 minutes. Persistent catches up a
+# missed run after the machine was off. Cheap (one cs_rows + awk), idempotent.
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -156,6 +156,20 @@ if command -v systemctl >/dev/null 2>&1; then
   else
     echo "skipped  enabling service (--no-boot)"
   fi
+
+  # Periodic snapshot timer — keeps last-session.tsv fresh for boot-restore even on
+  # an ungraceful stop (the service's ExecStop snapshot only fires on a clean stop).
+  sed -e "s#@REPO@#$REPO#g" -e "s#@BIN@#$BIN#g" \
+      "$REPO/systemd/claude-snapshot.service.in" > "$UNITDIR/claude-snapshot.service"
+  install -m0644 "$REPO/systemd/claude-snapshot.timer" "$UNITDIR/claude-snapshot.timer"
+  echo "wrote    $UNITDIR/claude-snapshot.{service,timer}"
+  systemctl --user daemon-reload
+  if [ "$ENABLE_BOOT" -eq 1 ]; then
+    systemctl --user enable --now claude-snapshot.timer
+    echo "enabled  claude-snapshot.timer (snapshot every 5 min)"
+  else
+    echo "skipped  enabling claude-snapshot.timer (--no-boot)"
+  fi
 else
   echo "skipped  systemd unit (systemctl not found) — start manually with: cj"
 fi

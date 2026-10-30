@@ -1,0 +1,10 @@
+[Unit]
+Description=Snapshot active Claude instances for boot-restore
+Documentation=file://@REPO@/README.md
+# Paired with claude-snapshot.timer. Keeps last-session.tsv fresh so an ungraceful
+# stop (crash/power loss/OOM) still restores the live set, not a stale one.
+
+[Service]
+Type=oneshot
+# @BIN@ filled in by install.sh for the current checkout.
+ExecStart=@BIN@/claude-snapshot
