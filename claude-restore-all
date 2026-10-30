@@ -22,10 +22,12 @@ n=0
 # parent instance where possible. Older 2-column snapshots have an empty kind
 # and are treated as instances (backward compatible).
 restore_instances() {
-  while IFS=$'\t' read -r name cwd kind _; do
+  # cols: name cwd kind parent transcript model effort (older snapshots lack the
+  # trailing fields -> they read empty, and cs_reopen falls back to --continue).
+  while IFS=$'\t' read -r name cwd kind _ transcript model effort; do
     [ -n "$name" ] || continue
     [ "$kind" = "shell" ] && continue
-    cs_reopen "$name" "${cwd:-$HOME}" >/dev/null 2>&1 || true
+    cs_reopen "$name" "${cwd:-$HOME}" "$transcript" "$model" "$effort" >/dev/null 2>&1 || true
     n=$((n + 1))
   done < "$snap"
 }
